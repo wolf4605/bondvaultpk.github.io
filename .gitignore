@@ -12,3 +12,4 @@ wheels/
 .env
 template
 logs
+test

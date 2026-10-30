@@ -22,10 +22,10 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.exceptions import HTTPException
 
+from .. import payloads, responses
 from ..database import DB
 from ..models.user_model import UserInfo
-from ..responses import UserLoginResponse
-from ..utilities.auth import verify_password
+from ..utilities.auth import hash_password, verify_password
 from ..utilities.auth_dependencies import get_current_user
 from ..utilities.auth_tokens import create_access_token, token_lifetime
 
@@ -35,12 +35,12 @@ router = APIRouter(prefix="/users", tags=["User Authentication"])
 
 @router.post(
     "/auth/login",
-    response_model=UserLoginResponse,
+    response_model=responses.UserLoginResponse,
     summary="Log in as a user",
 )
 async def login_user(
     credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> UserLoginResponse:
+) -> responses.UserLoginResponse:
     """Authenticate a user with an OAuth2 username/email and password form."""
     record = await DB.fetchrow(
         """
@@ -93,23 +93,48 @@ async def login_user(
             "subject_id": str(user.id),
         },
     )
-    return UserLoginResponse(
+    return responses.UserLoginResponse(
         access_token=token,
         expires_in=int(token_lifetime().total_seconds()),
         payload=user,
     )
 
-
-@router.get(
-    "/me",
-    response_model=UserInfo,
-    summary="Get the authenticated user's profile",
+@router.post(
+    "/change-password",
+    summary="Change Password"
 )
-async def get_user_info(
-    user_info: Annotated[UserInfo, Depends(get_current_user)],
-) -> UserInfo:
-    """Return the authenticated user's profile without a separate user ID."""
-    return user_info
+async def change_password(
+    user: Annotated[UserInfo, Depends(get_current_user)],
+    payload: payloads.ChangePassword):
+    """Request for a password change."""
+
+    if payload.old_password == payload.new_password:
+        return HTTPException(
+            status_code= status.HTTP_409_CONFLICT,
+            detail= "Old and New Passwords can not be the same."
+        )
+
+    old_password_hash = await DB.fetchval("""SELECT "password_hash" FROM "users" WHERE "id"= $1""",user.id)
+
+    if not verify_password(payload.old_password, old_password_hash):
+        return HTTPException(
+            status_code= status.HTTP_403_FORBIDDEN,
+            detail = "Invalid Old password"
+        )
+    
+    new_password_hash = hash_password(payload.new_password)
+    query = """
+            UPDATE "users"
+            SET "password_hash" = $1
+            WHERE "id" = $2
+        """
+    await DB.execute(
+        query,
+        new_password_hash,
+        user.id
+    )
+    return responses.BaseResponse(message="Password Change Successfully.")
+
 
 
 __all__ = ["router"]

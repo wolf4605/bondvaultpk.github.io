@@ -17,6 +17,7 @@
 """
 
 import logging
+import traceback
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from time import perf_counter
@@ -31,7 +32,10 @@ from starlette.responses import Response
 
 from src import Tags
 from src.configs import AppSettings
+from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
+from src.routers.bonds import router as bond_router
+from src.routers.user import router as user_router
 from src.routers.user_auth import router as user_auth_router
 from src.services.lifespan import lifespan
 from src.utilities.auth_tokens import ACCESS_TOKEN_EXPIRES_HEADER, ACCESS_TOKEN_HEADER
@@ -47,6 +51,7 @@ exception_file_logger = logging.getLogger("application.errors")
 # ╚══════════════════════════════════════════════════════════╝
 
 app = FastAPI(
+    debug = True,
     title= AppSettings.Title,
     version= AppSettings.Version,
     description= AppSettings.Description,
@@ -60,8 +65,16 @@ app = FastAPI(
 The main application variable used to run the Backend.
 """
 
+app.include_router(user_auth_router)
+app.include_router(admin_auth_router)
+app.include_router(bond_router)
+app.include_router(admin_router)
+app.include_router(user_router)
 
-@app.get("/health")
+@app.get(
+        path = "/health",
+        tags=["System"]
+        )
 async def get_health() -> None:
     """Return the existing health-check response."""
     raise TypeError("Unknown Value")
@@ -81,9 +94,13 @@ async def audit_admin_actions(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Audit administrator API requests without recording credentials."""
+    """Handle request exceptions and audit administrator APIs without credentials."""
     started_at = perf_counter()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as error:
+        response = await handle_app_error(request, error)
+
     if request.url.path.startswith("/admins/"):
         payload = getattr(request.state, "admin_payload", None)
         audit_logger = logging.getLogger("application.audit")
@@ -100,9 +117,6 @@ async def audit_admin_actions(
         )
     return response
 
-
-app.include_router(user_auth_router)
-app.include_router(admin_auth_router)
 
 
 # ==================== SCALAR DOCS SETUP ====================
@@ -136,17 +150,31 @@ async def setup_scalar() -> HTMLResponse:
 # ╚══════════════════════════════════════════════════════════╝
 
 
-def _get_exception_message(error: Exception, fallback: str) -> tuple[str, bool]:
-    """Return a safe message and whether the original exception can be formatted."""
+def _get_exception_message(error: Exception, fallback: str) -> str:
+    """Return a safe message for the client response."""
     if not error.args:
-        return fallback, False
+        return fallback
 
     try:
         message = str(error)
     except IndexError:
-        return fallback, False
+        return fallback
 
-    return (message or fallback), bool(message)
+    return message or fallback
+
+
+def _get_debug_exception_details(error: Exception) -> dict[str, str]:
+    """Return exception type and traceback only when application debugging is enabled."""
+    if not app.debug:
+        return {}
+
+    return {
+        "exception": type(error).__name__,
+        "traceback": "".join(
+            traceback.format_exception(type(error), error, error.__traceback__)
+        ),
+    }
+
 
 @app.exception_handler(_HTTPException)
 @app.exception_handler(ConnectionError)
@@ -160,7 +188,21 @@ async def handle_app_error(
     request: Request,
     error: ConnectionError|TimeoutError|ValueError|RuntimeError|asyncpg.exceptions.PostgresError|asyncpg.exceptions.InterfaceError|_HTTPException|Exception
 ) -> JSONResponse:
-    """Return"""
+    """Log the full exception and return the corresponding API error response."""
+
+    exception_file_logger.error(
+        "Endpoint exception [%s %s] (%s)",
+        request.method,
+        request.url.path,
+        type(error).__name__,
+        exc_info=(type(error), error, error.__traceback__),
+    )
+    if not app.debug:
+        logging.getLogger("application.error_indicator").error(
+            "Endpoint failed [%s %s]",
+            request.method,
+            request.url.path,
+        )
 
     if isinstance(error, _HTTPException):
         status_name = next(
@@ -178,7 +220,8 @@ async def handle_app_error(
                 "error" : {
                     "status_code" : error.status_code,
                     "code" : status_name,
-                    "message" : error.detail
+                    "message" : error.detail,
+                    **_get_debug_exception_details(error),
                 }
             }
         )
@@ -214,42 +257,29 @@ async def handle_app_error(
         code = "DATABASE_INTERFACE_ERROR"
         fallback_message = "A database operation could not be completed."
     elif isinstance(error, Exception):
-        exception_file_logger.error(
-            "Unhandled request exception [%s %s] (%s): %s",
-            request.method,
-            request.url.path,
-            type(error).__name__,
-            error,
-            exc_info=(type(error), error, error.__traceback__),
-        )
-
+        fallback_message = "An unexpected error occurred."
         return JSONResponse(
             status_code=500,
             content={
                 "error": {
                     "status_code": 500,
                     "code": "INTERNAL_ERROR",
-                    "message": "An unexpected error occurred.",
+                    "message": (
+                        _get_exception_message(error, fallback_message)
+                        if app.debug
+                        else fallback_message
+                    ),
+                    **_get_debug_exception_details(error),
                 }
             },
         )
     else:
         raise TypeError(f"Unsupported application error type: {type(error).__name__}")
 
-    message, can_format_exception = _get_exception_message(
-        error,
-        fallback_message,
-    )
-    exception_file_logger.error(
-        "Request failed [%s %s] (%s, %s): %s",
-        request.method,
-        request.url.path,
-        code,
-        type(error).__name__,
-        message,
-        exc_info=(
-            (type(error), error, error.__traceback__) if can_format_exception else None
-        ),
+    message = (
+        _get_exception_message(error, fallback_message)
+        if app.debug
+        else fallback_message
     )
 
     return JSONResponse(
@@ -259,6 +289,7 @@ async def handle_app_error(
                 "status_code": status_code,
                 "code": code,
                 "message": message,
+                **_get_debug_exception_details(error),
             }
         },
     )

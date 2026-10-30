@@ -17,13 +17,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator
 
 from ..utilities.auth import hash_password
-from .base_model import DatabaseModel
+from .base_model import Model
 
 
-class AdminRegister(BaseModel):
+class AdminRegister(Model):
     """A model to be used when registering an `administrator`."""
     username: str = Field(
             default=...,
@@ -84,7 +84,7 @@ class AdminRegister(BaseModel):
             raise ValueError("Invalid Contact Number. Please use a valid Pakistani Mobile Operator Number.")
 
 
-class AdminInfo(DatabaseModel):
+class AdminInfo(Model):
     """Public administrator fields returned by database operations."""
 
     id: UUID = Field(default=..., description="The administrator's unique identifier.")

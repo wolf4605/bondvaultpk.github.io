@@ -16,6 +16,7 @@
 """
 
 from typing import Literal
+from uuid import UUID
 
 from fastapi import status
 from pydantic import BaseModel, Field
@@ -28,6 +29,18 @@ class BaseResponse(BaseModel):
     status_code: int = Field(default=status.HTTP_200_OK, description= "The status code for the request.")
     message: str|None = Field(default = None, description = "The message to attach along with the response.")
 
+class AdminRegister(BaseResponse):
+    """The Response to be sent when registering a new_user."""
+class UserResponseBase(BaseResponse):
+    """The Base response for the requests that are made by authenticated users."""
+    id:UUID
+    """The Unique identifier of the user."""
+    username : str
+    """Username of the user."""
+
+class UserBondlistGet(UserResponseBase):
+    """The response model to be send when a user asks for his bondlist(s)."""
+    bondlists: models.BondListsExtended|models.BondListsBasic = Field(default = models.BondListsBasic(), description = "A list containing the users bondlists.")
 class UserInfoResponse(BaseResponse):
     """Response for sending the minimal user info."""
     user_info: models.UserInfo
@@ -50,4 +63,5 @@ class AdminLoginResponse(BaseModel):
     expires_in: int = Field(ge=1, description="Token lifetime in seconds.")
     payload: models.AdminInfo
 
-    
+class AllUsersResponse(BaseResponse):
+    users: list[models.UserInfo] = []

@@ -133,6 +133,11 @@ LOGGING_CONFIG = {
             "level": "ERROR",
             "propagate": False,
         },
+        "application.error_indicator": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
         "application.audit": {
             "handlers": ["file"],
             "level": "INFO",

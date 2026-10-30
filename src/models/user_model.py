@@ -15,15 +15,16 @@
 * Copyright© BondVault PK. All rights reserved.
 """
 from datetime import datetime
+from email.policy import default
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator
 
 from ..utilities.auth import hash_password
-from .base_model import DatabaseModel
+from .base_model import Model
 
 
-class UserRegister(BaseModel):
+class UserRegister(Model):
     """The Model to be used when registering a new `user` to the application."""
     username: str = Field(
         default=...,
@@ -81,10 +82,9 @@ class UserRegister(BaseModel):
         else:
             raise ValueError("Invalid Contact Number. Please use a valid Pakistani Mobile Operator Number.")
 
-
-class UserInfo(DatabaseModel):
+   
+class UserInfo(Model):
     """Public user fields returned by database operations."""
-
     id: UUID = Field(default=..., description="The user's unique identifier.")
     username: str = Field(default=..., description="The user's unique username.")
     email: str = Field(default=..., description="The user's email address.")

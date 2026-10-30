@@ -15,4 +15,4 @@
 * Copyright© BondVault PK. All rights reserved.
 """
 
-from .basic import LoginPayload
+from .basic import *
