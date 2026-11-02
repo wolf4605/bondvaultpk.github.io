@@ -27,6 +27,7 @@ from ..database import DB
 from ..models.admin_model import AdminInfo
 from ..models.auth_model import TokenClaims
 from ..models.user_model import UserInfo
+from ..redis import RedisWrapper
 from .auth_tokens import (
     ACCESS_TOKEN_EXPIRES_HEADER,
     ACCESS_TOKEN_HEADER,
@@ -74,12 +75,57 @@ def _refresh_response(
     response: Response,
     subject: UUID,
     role: Literal["user", "admin"],
+    session_id: UUID,
 ) -> None:
     """Attach a freshly expiring token to each authenticated response."""
-    response.headers[ACCESS_TOKEN_HEADER] = create_access_token(subject, role)
+    response.headers[ACCESS_TOKEN_HEADER] = create_access_token(
+        subject,
+        role,
+        session_id,
+    )
     response.headers[ACCESS_TOKEN_EXPIRES_HEADER] = str(
         int(token_lifetime().total_seconds())
     )
+
+
+def clear_access_token_headers(response: Response) -> None:
+    """Prevent a revoked session's refreshed token from being returned."""
+    if ACCESS_TOKEN_HEADER in response.headers:
+        del response.headers[ACCESS_TOKEN_HEADER]
+    if ACCESS_TOKEN_EXPIRES_HEADER in response.headers:
+        del response.headers[ACCESS_TOKEN_EXPIRES_HEADER]
+
+
+async def revoke_sessions(
+    subject: UUID,
+    role: Literal["user", "admin"],
+    redis: RedisWrapper,
+    session_id: UUID | None = None,
+) -> None:
+    """Revoke one session or every session belonging to an account."""
+    if session_id is not None:
+        await redis.revoke_session(subject, role, session_id)
+        return
+    await redis.revoke_account_sessions(subject, role)
+
+
+async def _refresh_active_session(
+    claims: TokenClaims,
+    response: Response,
+    redis: RedisWrapper,
+) -> None:
+    """Extend an active session and return a replacement access token."""
+    lifetime_seconds = int(token_lifetime().total_seconds())
+    active = await redis.refresh_session(
+        claims.sub,
+        claims.role,
+        claims.sid,
+        lifetime_seconds,
+    )
+    if not active:
+        raise _unauthorized()
+
+    _refresh_response(response, claims.sub, claims.role, claims.sid)
 
 
 async def get_current_user(
@@ -88,6 +134,7 @@ async def get_current_user(
         Depends(user_oauth2_scheme),
     ],
     response: Response,
+    request: Request,
 ) -> UserInfo:
     """Resolve and refresh the authenticated user's payload."""
     claims = _token_claims(credentials)
@@ -107,7 +154,12 @@ async def get_current_user(
         raise _unauthorized()
     payload = UserInfo.model_validate(dict(record))
 
-    _refresh_response(response, payload.id, "user")
+    request.state.session_id = claims.sid
+    await _refresh_active_session(
+        claims,
+        response,
+        request.app.state.redis_wrapper,
+    )
     return payload
 
 
@@ -138,8 +190,18 @@ async def get_current_admin(
     payload = AdminInfo.model_validate(dict(record))
 
     request.state.admin_payload = payload
-    _refresh_response(response, payload.id, "admin")
+    request.state.session_id = claims.sid
+    await _refresh_active_session(
+        claims,
+        response,
+        request.app.state.redis_wrapper,
+    )
     return payload
 
 
-__all__ = ["get_current_admin", "get_current_user"]
+__all__ = [
+    "clear_access_token_headers",
+    "get_current_admin",
+    "get_current_user",
+    "revoke_sessions",
+]

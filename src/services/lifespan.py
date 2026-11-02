@@ -24,13 +24,15 @@ from fastapi import FastAPI
 from ..configs import AdminDBConfigs, AppSettings
 from ..database import DB
 from ..logging import get_logger, setup_logging
+from ..redis import RedisWrapper
 from ..utilities.auth_tokens import validate_jwt_config
 from .db_initializor import DB_initializor
 from .db_monitor import DatabaseMonitor
+from .redis_monitor import RedisMonitor
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Configure logging and manage the shared database connection pool."""
 
     # Actions to perform when API starts
@@ -48,23 +50,41 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             logger.info("Database initialized now you can remove [cyan]ADMIN_POSTGRES_USER[/] or [cyan]ADMIN_POSTGrES_PASSWORD[/] from .env file.")
 
     monitor_task: asyncio.Task[None] | None = None
+    redis_monitor_task: asyncio.Task[None] | None = None
+    redis_wrapper = RedisWrapper()
+    redis_monitor = RedisMonitor(redis_wrapper)
     try:
+        validate_jwt_config()
+        await redis_monitor.wait_for_connection()
+        app.state.redis_wrapper = redis_wrapper
         logger.debug("Connecting to the database...")
         monitor: DatabaseMonitor = DatabaseMonitor(DB)
         await monitor.wait_for_connection()
         monitor_task = asyncio.create_task(
             monitor.start(), name="Database-Health-Monitor"
         )
-        validate_jwt_config()
-
+        redis_monitor_task = asyncio.create_task(
+            redis_monitor.start(),
+            name="Redis-Health-Monitor",
+        )
         yield
 
     finally:
-        if monitor_task is not None:
-            if not monitor_task.done():
-                monitor_task.cancel()
+        monitor_tasks = [
+            task
+            for task in (monitor_task, redis_monitor_task)
+            if task is not None
+        ]
+        for task in monitor_tasks:
+            if not task.done():
+                task.cancel()
+        if monitor_tasks:
+            await asyncio.gather(*monitor_tasks, return_exceptions=True)
 
-            await asyncio.gather(monitor_task, return_exceptions=True)
-
-        await DB.pool_close()
-        logger.success("Connection Pool closed successfully.")
+        try:
+            await redis_wrapper.close()
+        finally:
+            if hasattr(app.state, "redis_wrapper"):
+                del app.state.redis_wrapper
+            await DB.pool_close()
+            logger.success("Connection Pool closed successfully.")

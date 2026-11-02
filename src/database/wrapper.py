@@ -60,6 +60,12 @@ class Database:
         if self._pool is not None:
             return
 
+        logger.info(
+            "Opening PostgreSQL connection pool (host=%s, port=%s, database=%s).",
+            DBConfigs.POSTGRES_HOST,
+            DBConfigs.POSTGRES_PORT,
+            DBConfigs.POSTGRES_DB,
+        )
         try:
             self._pool = await asyncpg.create_pool(
                 dsn=self._dsn,
@@ -68,11 +74,17 @@ class Database:
                 timeout=self._timeout,
                 command_timeout=self._command_timeout,
             )
-            logger.success("Connection pool created.")
         except Exception as error:
             self._pool = None
+            logger.warning(
+                "Could not open the PostgreSQL connection pool (host=%s, port=%s, database=%s): %s",
+                DBConfigs.POSTGRES_HOST,
+                DBConfigs.POSTGRES_PORT,
+                DBConfigs.POSTGRES_DB,
+                error,
+            )
             raise ConnectionError(
-                "Unable to connect to database. Please check your credentials and make sure the database is online."
+                "Unable to open the PostgreSQL connection pool."
             ) from error
 
     async def pool_close(self) -> None:
@@ -84,7 +96,9 @@ class Database:
         try:
             await pool.close()
             self._pool = None
+            logger.info("PostgreSQL connection pool closed.")
         except Exception as error:
+            logger.error("Could not close the PostgreSQL connection pool: %s", error)
             raise ConnectionError(
                 "Unable to close the PostgreSQL connection pool."
             ) from error
@@ -223,7 +237,8 @@ class Database:
             RuntimeError,
             ValueError,
             TimeoutError,
-        ):
+        ) as error:
+            logger.warning("PostgreSQL health check failed: %s", error)
             return False
 
 

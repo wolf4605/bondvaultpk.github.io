@@ -26,6 +26,7 @@ class TokenClaims(BaseModel):
 
     sub: UUID
     role: Literal["user", "admin"]
+    sid: UUID
     iat: int
     exp: int
     jti: UUID

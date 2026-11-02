@@ -15,8 +15,12 @@ The token-signing algorithm is `HS256`, configured in
 `ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES` in the same file and defaults to 10
 minutes. Change that value to tune the inactivity window.
 
-The application validates the secret during startup. Startup also opens the
-database connection pool, which is closed during application shutdown.
+The application validates the secret during startup. Startup also connects to
+the database and Redis session store; both connections close during shutdown.
+Set `REDIS_URL` to the Redis connection URL (defaults to
+`redis://localhost:6379/0`). The Docker Compose setup starts a local Redis
+service on that address; an API container on the same Compose network should
+use `redis://redis:6379/0`.
 
 ## Sign in from Swagger UI
 
@@ -93,10 +97,34 @@ The middleware currently permits all origins and does not allow cookies or
 other credential-based browser authentication; restrict allowed origins in
 deployment if the frontend origin is known.
 
-There is no refresh token or server-side session store. Token renewal relies
-on clients accepting the replacement response header. Tokens remain valid
-until expiry if the account password changes; account deletion invalidates
-them on the next request because the account is reloaded each time.
+There is no refresh token; token renewal relies on clients accepting the
+replacement response header. The API persists active sessions in Redis, and
+each renewed token remains associated with the same server-side session.
+
+## Logout and password changes
+
+Use the matching authenticated logout endpoint to revoke the current session:
+
+- `POST /users/auth/logout`
+- `POST /admins/auth/logout`
+
+Changing a password revokes all active sessions for that account:
+
+- `POST /users/change-password`
+- `POST /admins/change-password`
+
+After logout or a successful password change, discard the stored access token.
+The API does not return a replacement token on either response. Previously
+issued tokens for a revoked session are rejected on the next request.
+
+Tokens issued before session tracking was added do not include a session ID
+and require the account to sign in again.
+
+## Active user counts
+
+`GET /system/active-users` is public and returns `total_registered_users` and
+`currently_online_users`. A user is counted as online while at least one of
+their Redis sessions is unexpired and the corresponding account still exists.
 
 ## Administrator audit logging
 

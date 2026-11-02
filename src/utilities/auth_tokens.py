@@ -27,7 +27,11 @@ def token_lifetime() -> timedelta:
     return timedelta(minutes=ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES)
 
 
-def create_access_token(subject: UUID, role: Literal["user", "admin"]) -> str:
+def create_access_token(
+    subject: UUID,
+    role: Literal["user", "admin"],
+    session_id: UUID,
+) -> str:
     """Create a signed token whose expiry is based on the current activity."""
     issued_at = datetime.now(UTC)
     expires_at = issued_at + token_lifetime()
@@ -35,6 +39,7 @@ def create_access_token(subject: UUID, role: Literal["user", "admin"]) -> str:
         {
             "sub": str(subject),
             "role": role,
+            "sid": str(session_id),
             "iat": int(issued_at.timestamp()),
             "exp": int(expires_at.timestamp()),
             "jti": str(uuid4()),
@@ -50,7 +55,7 @@ def decode_access_token(token: str) -> TokenClaims:
         token,
         get_jwt_secret(),
         algorithms=[JWT_ALGORITHM],
-        options={"require": ["sub", "role", "iat", "exp", "jti"]},
+        options={"require": ["sub", "role", "sid", "iat", "exp", "jti"]},
     )
     return TokenClaims.model_validate(claims)
 

@@ -17,15 +17,20 @@
 
 import logging
 from typing import Annotated
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.exceptions import HTTPException
 
 from .. import models, payloads, responses
 from ..database import DB
 from ..utilities.auth import hash_password, verify_password
-from ..utilities.auth_dependencies import get_current_admin
+from ..utilities.auth_dependencies import (
+    clear_access_token_headers,
+    get_current_admin,
+    revoke_sessions,
+)
 from ..utilities.auth_tokens import create_access_token, token_lifetime
 
 logger = logging.getLogger("application.audit")
@@ -53,6 +58,7 @@ async def register_admin(
 )
 async def login_admin(
     credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
+    request: Request,
 ) -> responses.AdminLoginResponse:
     """Authenticate an administrator with username/email and password form data."""
     record = await DB.fetchrow(
@@ -81,7 +87,27 @@ async def login_admin(
         )
 
     admin = models.AdminInfo.model_validate(dict(record))
-    token = create_access_token(admin.id, "admin")
+    session_id = uuid4()
+    lifetime_seconds = int(token_lifetime().total_seconds())
+    async with DB.transaction() as connection:
+        current_password_hash = await connection.fetchval(
+            'SELECT "password_hash" FROM "admins" WHERE "id" = $1 FOR UPDATE',
+            admin.id,
+        )
+        if current_password_hash != record["password_hash"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        await request.app.state.redis_wrapper.create_session(
+            admin.id,
+            "admin",
+            session_id,
+            lifetime_seconds,
+        )
+
+    token = create_access_token(admin.id, "admin", session_id)
     logger.info(
         "administrator authenticated",
         extra={
@@ -92,9 +118,38 @@ async def login_admin(
     )
     return responses.AdminLoginResponse(
         access_token=token,
-        expires_in=int(token_lifetime().total_seconds()),
+        expires_in=lifetime_seconds,
         payload=admin,
     )
+
+
+@router.post(
+    "/auth/logout",
+    response_model=responses.BaseResponse,
+    summary="Log out the authenticated administrator",
+)
+async def logout_admin(
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+    request: Request,
+    response: Response,
+) -> responses.BaseResponse:
+    """Revoke the authenticated administrator's current session."""
+    await revoke_sessions(
+        admin.id,
+        "admin",
+        request.app.state.redis_wrapper,
+        request.state.session_id,
+    )
+    clear_access_token_headers(response)
+    logger.info(
+        "administrator logged out",
+        extra={
+            "event": "auth.logout",
+            "role": "admin",
+            "subject_id": str(admin.id),
+        },
+    )
+    return responses.BaseResponse(message="Logged out successfully.")
 
 
 @router.get(
@@ -110,39 +165,55 @@ async def get_admin_info(
 
 @router.post(
     "/change-password",
-    summary="Change Password"
+    response_model=responses.BaseResponse,
+    summary="Change the authenticated administrator's password",
 )
 async def change_password(
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
-    payload: payloads.ChangePassword):
-    """Request for a password change."""
+    payload: payloads.ChangePassword,
+    response: Response,
+    request: Request,
+) -> responses.BaseResponse:
+    """Change the administrator's password and revoke all their sessions."""
 
     if payload.old_password == payload.new_password:
-        return HTTPException(
-            status_code= status.HTTP_409_CONFLICT,
-            detail= "Old and New Passwords can not be the same."
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Old and new passwords cannot be the same.",
         )
 
-    old_password_hash = await DB.fetchval("""SELECT "password_hash" FROM "users" WHERE "id"= $1""",admin.id)
-
-    if not verify_password(payload.old_password, old_password_hash):
-        return HTTPException(
-            status_code= status.HTTP_403_FORBIDDEN,
-            detail = "Invalid Old password"
+    async with DB.transaction() as connection:
+        old_password_hash = await connection.fetchval(
+            'SELECT "password_hash" FROM "admins" WHERE "id" = $1 FOR UPDATE',
+            admin.id,
         )
-    else:
+        if not isinstance(old_password_hash, str) or not verify_password(
+            payload.old_password,
+            old_password_hash,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid old password.",
+            )
+
         new_password_hash = hash_password(payload.new_password)
-        query = """
-                UPDATE "users"
-                SET "password_hash" = $1
-                WHERE "id" = $2
-            """
-        await DB.execute(
-            query,
+        await connection.execute(
+            'UPDATE "admins" SET "password_hash" = $1 WHERE "id" = $2',
             new_password_hash,
-            admin.id
+            admin.id,
         )
-        return responses.BaseResponse(message="Password Change Successfully.")
+        await revoke_sessions(admin.id, "admin", request.app.state.redis_wrapper)
+
+    clear_access_token_headers(response)
+    logger.info(
+        "administrator password changed",
+        extra={
+            "event": "auth.password.changed",
+            "role": "admin",
+            "subject_id": str(admin.id),
+        },
+    )
+    return responses.BaseResponse(message="Password changed successfully.")
 
 
 

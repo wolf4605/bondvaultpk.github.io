@@ -51,8 +51,8 @@ class DatabaseMonitor:
         """Starts the Databse Monitor."""
 
         logger.info(
-            "Database Monitor Started; Checking every [cyan]%s[/] seconds.",
-            int(self._check_interval),
+            "PostgreSQL health monitor started (check_interval=%ss).",
+            self._check_interval,
         )
 
         while True:
@@ -65,8 +65,8 @@ class DatabaseMonitor:
                 RuntimeError,
                 asyncpg.exceptions.PostgresError,
                 asyncpg.exceptions.InterfaceError,
-            ):
-                logger.warning("Database Connection Lost.")
+            ) as error:
+                logger.warning("PostgreSQL health check failed: %s", error)
                 is_healthy = False
 
             if not is_healthy:
@@ -77,14 +77,21 @@ class DatabaseMonitor:
     async def wait_for_connection(self) -> None:
         """Wait indefinitely until the database accepts a connection."""
 
+        logger.info(
+            "Waiting for PostgreSQL (host=%s, port=%s, database=%s).",
+            configs.DBConfigs.POSTGRES_HOST,
+            configs.DBConfigs.POSTGRES_PORT,
+            configs.DBConfigs.POSTGRES_DB,
+        )
         await self._attempt_reconnects("startup")
 
     async def _attempt_reconnects(self, phase: str) -> bool:
         """Keep replacing the database connection until it's healthy or timed out."""
 
-        has_reported: bool = False
+        attempt = 0
 
         while True:
+            attempt += 1
             try:
                 await self._database.reconnect()
                 is_healthy = await self._database.check_health()
@@ -103,27 +110,30 @@ class DatabaseMonitor:
             if is_healthy:
                 if phase == "startup":
                     logger.success(
-                        f"Database Connection Initialized.\n🌐 Host: [underline blue]{configs.DBConfigs.POSTGRES_HOST}:{configs.DBConfigs.POSTGRES_PORT}[/]\n👤 User: [blue]{configs.DBConfigs.POSTGRES_USER}[/]\n🗃️ DB Name: [blue]{configs.DBConfigs.POSTGRES_DB}[/]"
+                        "PostgreSQL connection ready (host=%s, port=%s, database=%s).",
+                        configs.DBConfigs.POSTGRES_HOST,
+                        configs.DBConfigs.POSTGRES_PORT,
+                        configs.DBConfigs.POSTGRES_DB,
                     )
                 else:
                     logger.success(
-                        f"Database Connection Re-initialized.\n🌐 Host: [underline blue]{configs.DBConfigs.POSTGRES_HOST}:{configs.DBConfigs.POSTGRES_PORT}[/]\n👤 User: [blue]{configs.DBConfigs.POSTGRES_USER}[/]\n🗃️ DB Name: [blue]{configs.DBConfigs.POSTGRES_DB}[/]"
+                        "PostgreSQL connection restored (host=%s, port=%s, database=%s).",
+                        configs.DBConfigs.POSTGRES_HOST,
+                        configs.DBConfigs.POSTGRES_PORT,
+                        configs.DBConfigs.POSTGRES_DB,
                     )
                 return True
 
-            if not has_reported:
-                if phase == "startup":
-                    logger.critical(
-                        "Unable to connect the Database. Retrying...\nIs the Database Online?"
-                    )
-                else:
-                    logger.critical(
-                        "Connection to the Database Lost. Retrying...\nIs the Database Online?"
-                    )
-
-                has_reported = True
-
-            if failure is not None:
-                logger.debug("Database reconnect attempt failed: %s", failure)
+            logger.warning(
+                "PostgreSQL %s attempt %s failed; retrying in %s seconds "
+                "(host=%s, port=%s, database=%s).%s",
+                "connection" if phase == "startup" else "reconnect",
+                attempt,
+                self._retry_delay,
+                configs.DBConfigs.POSTGRES_HOST,
+                configs.DBConfigs.POSTGRES_PORT,
+                configs.DBConfigs.POSTGRES_DB,
+                f" Error: {failure}" if failure is not None else "",
+            )
 
             await asyncio.sleep(self._retry_delay)

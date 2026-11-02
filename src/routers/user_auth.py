@@ -17,8 +17,9 @@
 
 import logging
 from typing import Annotated
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.exceptions import HTTPException
 
@@ -26,7 +27,11 @@ from .. import payloads, responses
 from ..database import DB
 from ..models.user_model import UserInfo
 from ..utilities.auth import hash_password, verify_password
-from ..utilities.auth_dependencies import get_current_user
+from ..utilities.auth_dependencies import (
+    clear_access_token_headers,
+    get_current_user,
+    revoke_sessions,
+)
 from ..utilities.auth_tokens import create_access_token, token_lifetime
 
 logger = logging.getLogger("application.audit")
@@ -40,6 +45,7 @@ router = APIRouter(prefix="/users", tags=["User Authentication"])
 )
 async def login_user(
     credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
+    request: Request,
 ) -> responses.UserLoginResponse:
     """Authenticate a user with an OAuth2 username/email and password form."""
     record = await DB.fetchrow(
@@ -84,7 +90,27 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = create_access_token(user.id, "user")
+    session_id = uuid4()
+    lifetime_seconds = int(token_lifetime().total_seconds())
+    async with DB.transaction() as connection:
+        current_password_hash = await connection.fetchval(
+            'SELECT "password_hash" FROM "users" WHERE "id" = $1 FOR UPDATE',
+            user.id,
+        )
+        if current_password_hash != record["password_hash"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        await request.app.state.redis_wrapper.create_session(
+            user.id,
+            "user",
+            session_id,
+            lifetime_seconds,
+        )
+
+    token = create_access_token(user.id, "user", session_id)
     logger.info(
         "user authenticated",
         extra={
@@ -95,45 +121,91 @@ async def login_user(
     )
     return responses.UserLoginResponse(
         access_token=token,
-        expires_in=int(token_lifetime().total_seconds()),
+        expires_in=lifetime_seconds,
         payload=user,
     )
 
+
+@router.post(
+    "/auth/logout",
+    response_model=responses.BaseResponse,
+    summary="Log out the authenticated user",
+)
+async def logout_user(
+    user: Annotated[UserInfo, Depends(get_current_user)],
+    request: Request,
+    response: Response,
+) -> responses.BaseResponse:
+    """Revoke the authenticated user's current session."""
+    await revoke_sessions(
+        user.id,
+        "user",
+        request.app.state.redis_wrapper,
+        request.state.session_id,
+    )
+    clear_access_token_headers(response)
+    logger.info(
+        "user logged out",
+        extra={
+            "event": "auth.logout",
+            "role": "user",
+            "subject_id": str(user.id),
+        },
+    )
+    return responses.BaseResponse(message="Logged out successfully.")
+
+
 @router.post(
     "/change-password",
-    summary="Change Password"
+    response_model=responses.BaseResponse,
+    summary="Change the authenticated user's password",
 )
 async def change_password(
     user: Annotated[UserInfo, Depends(get_current_user)],
-    payload: payloads.ChangePassword):
-    """Request for a password change."""
+    payload: payloads.ChangePassword,
+    response: Response,
+    request: Request,
+) -> responses.BaseResponse:
+    """Change the user's password and revoke all of their sessions."""
 
     if payload.old_password == payload.new_password:
-        return HTTPException(
-            status_code= status.HTTP_409_CONFLICT,
-            detail= "Old and New Passwords can not be the same."
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Old and new passwords cannot be the same.",
         )
 
-    old_password_hash = await DB.fetchval("""SELECT "password_hash" FROM "users" WHERE "id"= $1""",user.id)
-
-    if not verify_password(payload.old_password, old_password_hash):
-        return HTTPException(
-            status_code= status.HTTP_403_FORBIDDEN,
-            detail = "Invalid Old password"
+    async with DB.transaction() as connection:
+        old_password_hash = await connection.fetchval(
+            'SELECT "password_hash" FROM "users" WHERE "id" = $1 FOR UPDATE',
+            user.id,
         )
-    
-    new_password_hash = hash_password(payload.new_password)
-    query = """
-            UPDATE "users"
-            SET "password_hash" = $1
-            WHERE "id" = $2
-        """
-    await DB.execute(
-        query,
-        new_password_hash,
-        user.id
+        if not isinstance(old_password_hash, str) or not verify_password(
+            payload.old_password,
+            old_password_hash,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid old password.",
+            )
+
+        new_password_hash = hash_password(payload.new_password)
+        await connection.execute(
+            'UPDATE "users" SET "password_hash" = $1 WHERE "id" = $2',
+            new_password_hash,
+            user.id,
+        )
+        await revoke_sessions(user.id, "user", request.app.state.redis_wrapper)
+
+    clear_access_token_headers(response)
+    logger.info(
+        "user password changed",
+        extra={
+            "event": "auth.password.changed",
+            "role": "user",
+            "subject_id": str(user.id),
+        },
     )
-    return responses.BaseResponse(message="Password Change Successfully.")
+    return responses.BaseResponse(message="Password changed successfully.")
 
 
 

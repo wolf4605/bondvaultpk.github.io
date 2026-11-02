@@ -35,6 +35,7 @@ from src.configs import AppSettings
 from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
 from src.routers.bonds import router as bond_router
+from src.routers.system import router as system_router
 from src.routers.user import router as user_router
 from src.routers.user_auth import router as user_auth_router
 from src.services.lifespan import lifespan
@@ -70,15 +71,7 @@ app.include_router(admin_auth_router)
 app.include_router(bond_router)
 app.include_router(admin_router)
 app.include_router(user_router)
-
-@app.get(
-        path = "/health",
-        tags=["System"]
-        )
-async def get_health() -> None:
-    """Return the existing health-check response."""
-    raise TypeError("Unknown Value")
-
+app.include_router(system_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -141,9 +134,6 @@ async def setup_scalar() -> HTMLResponse:
         custom_css= css_data,
         agent= AgentScalarConfig(disabled=True)
     )
-
-
-"""Contains Error Handlers for the Application while it is running."""
 
 # ╔══════════════════════════════════════════════════════════╗
 # ║                      ERROR HANDLING                      ║

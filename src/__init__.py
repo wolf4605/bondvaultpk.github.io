@@ -30,7 +30,7 @@ Tags = [
     },
     {
         "name": "Admin Authentication",
-        "description": "Create, refresh, and revoke administrator sessions.",
+        "description": "Create, refresh, and revoke administrator sessions or change a password.",
     },
     {
         "name": "Administrators",
@@ -38,7 +38,7 @@ Tags = [
     },
     {
         "name": "System",
-        "description": "Service health and availability information.",
+        "description": "Service health, availability, and user activity information.",
     },
         ]
 """Endpoint Tags used for organizing endpoints."""

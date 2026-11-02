@@ -65,3 +65,10 @@ class AdminLoginResponse(BaseModel):
 
 class AllUsersResponse(BaseResponse):
     users: list[models.UserInfo] = []
+
+
+class ActiveUsersResponse(BaseModel):
+    """Registered and currently online user counts."""
+
+    total_registered_users: int = Field(ge=0)
+    currently_online_users: int = Field(ge=0)

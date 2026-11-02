@@ -44,13 +44,13 @@ async def _get_profile(user:Annotated[models.UserInfo, Depends(get_current_user)
 
 
 @router.patch(
-"",
-summary="Update User Info",
-response_model=responses.BaseResponse
+    path="",
+    summary="Update User Info",
+    response_model=responses.BaseResponse
 )
 async def _update_user_info(
-user: Annotated[models.UserInfo, Depends(get_current_user)],
-payload: payloads.UserInfoUpdate,
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+    payload: payloads.UserInfoUpdate,
 ):
 
     ALLOWED_UPDATE_FIELDS = {
