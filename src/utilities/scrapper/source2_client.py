@@ -21,6 +21,7 @@ from .models import (
     PrizeBondDrawResult,
     PrizeBondResults,
     PrizeBondTextResult,
+    ScheduledDraw,
 )
 
 logger = get_logger()
@@ -61,16 +62,6 @@ class DrawResult(TypedDict):
     city: str
     url: str
     prizes: dict[str, PrizeTier]
-
-
-class ScheduledDraw(TypedDict):
-    draw_number: int
-    denomination: int
-    date: str
-    day: str
-    city: str
-    status: str
-    source_url: str
 
 
 class ScrapeError(TypedDict):
@@ -448,6 +439,50 @@ def scrape(
     }
 
 
+def scrape_upcoming_draws(
+    sitemap_url: str = SITEMAP_URL,
+    workers: int = 5,
+    today: date | None = None,
+) -> list[ScheduledDraw]:
+    """Fetch only scheduled draws, without downloading historical results."""
+    if workers < 1:
+        raise ValueError("The worker count must be at least one.")
+
+    sitemap_html = fetch_html(sitemap_url)
+    _, schedule_urls = discover_site_urls(sitemap_html, sitemap_url)
+    upcoming_draws: list[ScheduledDraw] = []
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        schedule_futures = {
+            executor.submit(fetch_html, url): url for url in schedule_urls
+        }
+        for future in as_completed(schedule_futures):
+            url = schedule_futures[future]
+            try:
+                upcoming_draws.extend(
+                    parse_schedule_page(future.result(), url, today)
+                )
+            except (URLError, OSError, ValueError) as error:
+                logger.warning(
+                    "Could not scrape PrizeBondPK schedule (url=%s): %s",
+                    url,
+                    error,
+                )
+
+    unique_schedules = {
+        (
+            int(item["denomination"]),
+            int(item["draw_number"]),
+            str(item["date"]),
+        ): item
+        for item in upcoming_draws
+    }
+    return sorted(
+        unique_schedules.values(),
+        key=lambda item: (str(item["date"]), int(item["denomination"])),
+    )
+
+
 _PRIZE_TIER_PATTERN = re.compile(
     r"\b(first|1st|second|2nd|third|3rd)\b",
     re.IGNORECASE,
@@ -468,11 +503,13 @@ class PrizeBondPKClient:
 
     def __init__(self) -> None:
         self._output: ScrapeOutput | None = None
+        self._upcoming_draws: list[ScheduledDraw] | None = None
         self._text_results: dict[tuple[int, str], PrizeBondTextResult] = {}
 
     async def fetch_draw_result_links(self) -> list[PrizeBondResults]:
         """Return PrizeBondPK result pages grouped by denomination."""
         output = await self._load_output()
+        self._upcoming_draws = output["upcoming_draws"]
         grouped_results: dict[int, list[PrizeBondDrawResult]] = {}
 
         for result in output["draw_results"]:
@@ -508,6 +545,16 @@ class PrizeBondPKClient:
             for result in drawlist.results
             if (drawlist.denomination, result.url) in self._text_results
         ]
+
+    async def fetch_upcoming_draws(self) -> list[ScheduledDraw]:
+        """Fetch upcoming dates from PrizeBondPK without scraping past results."""
+        if self._upcoming_draws is None:
+            self._upcoming_draws = await asyncio.to_thread(scrape_upcoming_draws)
+            logger.info(
+                "Scraped PrizeBondPK schedule (upcoming_draws=%s).",
+                len(self._upcoming_draws),
+            )
+        return self._upcoming_draws
 
     async def _load_output(self) -> ScrapeOutput:
         if self._output is None:

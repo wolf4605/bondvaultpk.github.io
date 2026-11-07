@@ -1,8 +1,8 @@
 # Automated draw-list processing
 
 The backend runs the draw-list workflow once after startup and then daily at
-10:00 PM Pakistan Standard Time (UTC+05:00). It reads the National Savings
-draw-list pages using `src.utilities.scrapper`.
+10:00 PM Pakistan Standard Time (UTC+05:00). Draw results use the configured
+source; the upcoming draw schedule is always fetched from PrizeBondPK.
 
 - Text files are preferred for each denomination and draw date. If a text file
   exists, only text files for that draw are parsed; associated PDF or other
@@ -24,17 +24,19 @@ startup so it is available when automated processing begins.
 
 ## Upcoming draw schedule
 
-The admin-managed `upcoming_draws` table stores one scheduled draw date per
-denomination. Its `(draw_date, denomination)` primary key prevents duplicate
-schedule entries. Add and maintain schedule rows directly in PostgreSQL; no
-official future-draw schedule feed is currently imported by the scraper.
+The `upcoming_draws` table stores PrizeBondPK's scheduled draw dates and
+locations. Automation inserts new entries and updates the location for existing
+`(draw_date, denomination)` pairs. Its primary key prevents duplicate schedule
+entries.
 
-The `cleanup_past_upcoming_draws` pg_cron job runs hourly and removes entries
-whose draw date has passed in Pakistan Standard Time. Database initialization
-creates the table and schedules the job. For an existing database where
-automatic initialization is disabled, apply `14-Upcoming-Draws.sql` and the
-updated `9-Tasks.sql` with a database administrator. This requires the
-`pg_cron` extension to be installed and enabled.
+The `cleanup_past_upcoming_draws` pg_cron job runs hourly and invokes the
+`cleanup_past_upcoming_draws()` function, which removes entries whose draw date
+has passed in Pakistan Standard Time. Database initialization creates the
+function before scheduling the job. For an existing database where automatic
+initialization is disabled, apply `14-Upcoming-Draws.sql`,
+`10-Functions&Triggers.sql`, and `9-Tasks.sql` in that order with a database
+administrator. This requires the `pg_cron` extension to be installed and
+enabled.
 
 Administrators can manage schedule entries through the API:
 

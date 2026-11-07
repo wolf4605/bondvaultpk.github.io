@@ -22,3 +22,4 @@ CREATE TABLE IF NOT EXISTS "draw_winners"(
     CONSTRAINT "pk_draw_winners" PRIMARY KEY ("draw_id", "bond_number"),
     CONSTRAINT "fk_draw_winners_drawlists" FOREIGN KEY ("draw_id") REFERENCES "drawlists"("draw_id") ON DELETE CASCADE
 );
+

@@ -14,6 +14,8 @@ from ..utilities.scrapper import (
     PrizeBondTextResult,
     create_prize_bond_client,
 )
+from ..utilities.scrapper.source2_client import PrizeBondPKClient
+from ..utilities.scrapper.models import ScheduledDraw, UpcomingDrawScraper
 from .drawlist_import import (
     import_text_draw_result,
     remove_completed_drawlist_tasks,
@@ -51,6 +53,7 @@ async def ensure_admin_tasks_table(database: Database = DB) -> None:
 async def process_drawlists(
     database: Database = DB,
     client: PrizeBondScraper | None = None,
+    upcoming_draw_client: UpcomingDrawScraper | None = None,
 ) -> None:
     """Import available text results and enqueue manual or missing-result tasks."""
     scraper = client or create_prize_bond_client()
@@ -58,10 +61,10 @@ async def process_drawlists(
     text_results = await scraper.fetch_text_draw_results(drawlists)
 
     for drawlist in drawlists:
-        results_by_draw: dict[date, list[PrizeBondDrawResult]] = {}
+        results_by_date: dict[date, list[PrizeBondDrawResult]] = {}
         for result in drawlist.results:
-            results_by_draw.setdefault(result.draw_date, []).append(result)
-        for draw_date, source_results in results_by_draw.items():
+            results_by_date.setdefault(result.draw_date, []).append(result)
+        for draw_date, source_results in results_by_date.items():
             if any(_can_auto_import(result) for result in source_results):
                 continue
             for result in source_results:
@@ -117,13 +120,17 @@ async def process_drawlists(
                 result.url,
             )
 
-    results_by_draw: dict[tuple[date, int], list[PrizeBondDrawResult]] = {}
+    results_by_denomination_date: dict[
+        tuple[date, int], list[PrizeBondDrawResult]
+    ] = {}
     for drawlist in drawlists:
         for result in drawlist.results:
             key = (result.draw_date, drawlist.denomination)
-            results_by_draw.setdefault(key, []).append(result)
+            results_by_denomination_date.setdefault(key, []).append(result)
 
-    for (draw_date, denomination), source_results in results_by_draw.items():
+    for (draw_date, denomination), source_results in (
+        results_by_denomination_date.items()
+    ):
         has_winners = await database.fetchval(
             """
             SELECT EXISTS (
@@ -159,16 +166,47 @@ async def process_drawlists(
     if removed_tasks:
         logger.info("Removed %s completed draw-list admin tasks.", removed_tasks)
 
+    schedule_scraper = upcoming_draw_client
+    if schedule_scraper is None:
+        schedule_scraper = (
+            scraper
+            if isinstance(scraper, PrizeBondPKClient)
+            else PrizeBondPKClient()
+        )
+    upcoming_draws = await schedule_scraper.fetch_upcoming_draws()
+    await _upsert_upcoming_draws(upcoming_draws, database)
+
     logger.info(
-        "Processed draw-list results (text_files=%s, source_draws=%s).",
+        "Processed draw-list results and schedule "
+        "(text_files=%s, source_draws=%s, upcoming_draws=%s).",
         len(text_results),
-        len(results_by_draw),
+        len(results_by_denomination_date),
+        len(upcoming_draws),
     )
 
 
 def _can_auto_import(result: PrizeBondDrawResult) -> bool:
     """Whether the selected source can parse this result automatically."""
     return result.file_type == "txt" or result.can_auto_import
+
+
+async def _upsert_upcoming_draws(
+    upcoming_draws: list[ScheduledDraw],
+    database: Database,
+) -> None:
+    """Synchronize PrizeBondPK scheduled draws into the upcoming-draw table."""
+    for draw in upcoming_draws:
+        await database.execute(
+            """
+            INSERT INTO "upcoming_draws" ("draw_date", "denomination", "location")
+            VALUES ($1, $2, $3)
+            ON CONFLICT ("draw_date", "denomination")
+            DO UPDATE SET "location" = EXCLUDED."location"
+            """,
+            date.fromisoformat(draw["date"]),
+            draw["denomination"],
+            draw["city"] or None,
+        )
 
 
 async def run_drawlist_automation() -> None:

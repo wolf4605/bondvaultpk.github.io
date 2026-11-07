@@ -23,6 +23,22 @@ END;
 $$
 LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION cleanup_past_upcoming_draws()
+    RETURNS INTEGER
+    AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM "upcoming_draws"
+    WHERE "draw_date" < (
+        CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Karachi'
+    )::DATE;
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$
+LANGUAGE plpgsql;
+
 -- Create the trigger only if it does not already exist.
 DO $$
 BEGIN
@@ -42,4 +58,3 @@ BEGIN
 END IF;
 END;
 $$;
-

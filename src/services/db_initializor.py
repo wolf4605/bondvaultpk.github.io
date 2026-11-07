@@ -125,10 +125,10 @@ class DB_initializor:
         async with self.__db.transaction() as conn:
             await conn.execute(index_schema)
             logger.info("Successfully executed [cyan]8-Indexes.sql[/].")
-            await conn.execute(tasks_schema)
-            logger.info("Successfully executed [cyan]9-Tasks.sql[/].")
             await conn.execute(funcs_schema)
             logger.info("Successfully executed [cyan]10-Functions&Triggers.sql[/].")
+            await conn.execute(tasks_schema)
+            logger.info("Successfully executed [cyan]9-Tasks.sql[/].")
             await conn.execute(admin_invites_schema)
             logger.info("Successfully executed [cyan]12-Admin-Invites.sql[/].")
             await conn.execute(admin_tasks_schema)

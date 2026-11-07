@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,16 @@ class PrizeBondTextResult:
     error: str | None = None
 
 
+class ScheduledDraw(TypedDict):
+    draw_number: int
+    denomination: int
+    date: str
+    day: str
+    city: str
+    status: str
+    source_url: str
+
+
 class PrizeBondScraper(Protocol):
     """Common interface for configured prize-bond result sources."""
 
@@ -46,3 +56,9 @@ class PrizeBondScraper(Protocol):
         self,
         drawlist_results: Sequence[PrizeBondResults] | None = None,
     ) -> list[PrizeBondTextResult]: ...
+
+
+class UpcomingDrawScraper(Protocol):
+    """Source of scheduled draws for the upcoming-draw table."""
+
+    async def fetch_upcoming_draws(self) -> list[ScheduledDraw]: ...
