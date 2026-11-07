@@ -26,6 +26,10 @@ from ..database import DB
 from ..logging import get_logger, setup_logging
 from ..redis import RedisWrapper
 from ..utilities.auth_tokens import validate_jwt_config
+from .drawlist_automation import (
+    ensure_admin_tasks_table,
+    run_drawlist_automation,
+)
 from .db_initializor import DB_initializor
 from .db_monitor import DatabaseMonitor
 from .redis_monitor import RedisMonitor
@@ -51,6 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     monitor_task: asyncio.Task[None] | None = None
     redis_monitor_task: asyncio.Task[None] | None = None
+    drawlist_automation_task: asyncio.Task[None] | None = None
     redis_wrapper = RedisWrapper()
     redis_monitor = RedisMonitor(redis_wrapper)
     try:
@@ -60,6 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.debug("Connecting to the database...")
         monitor: DatabaseMonitor = DatabaseMonitor(DB)
         await monitor.wait_for_connection()
+        await ensure_admin_tasks_table()
         monitor_task = asyncio.create_task(
             monitor.start(), name="Database-Health-Monitor"
         )
@@ -67,12 +73,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             redis_monitor.start(),
             name="Redis-Health-Monitor",
         )
+        drawlist_automation_task = asyncio.create_task(
+            run_drawlist_automation(),
+            name="Drawlist-Automation",
+        )
         yield
 
     finally:
         monitor_tasks = [
             task
-            for task in (monitor_task, redis_monitor_task)
+            for task in (
+                monitor_task,
+                redis_monitor_task,
+                drawlist_automation_task,
+            )
             if task is not None
         ]
         for task in monitor_tasks:

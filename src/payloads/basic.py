@@ -15,7 +15,18 @@
 * Copyright© BondVault PK. All rights reserved.
 """
 
-from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
+from datetime import UTC, date, datetime
+from typing import Literal
+
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    field_validator,
+)
 
 from ..configs import PrizeBondDenominations
 from ..utilities.auth import hash_password
@@ -26,6 +37,41 @@ class LoginPayload(BaseModel):
 
     username: str = Field(min_length=1, max_length=254, description="The account username.")
     password: SecretStr = Field(min_length=1, description="The account password.")
+
+
+class EmailVerificationRequest(BaseModel):
+    """Request an email verification code."""
+
+    email: EmailStr
+
+
+class EmailVerificationCheck(BaseModel):
+    """Submit an emailed verification code."""
+
+    email: EmailStr
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class UserPasswordRecoveryRequest(BaseModel):
+    """Request a password recovery code."""
+
+    email: EmailStr
+
+
+class UserPasswordRecoveryComplete(BaseModel):
+    """Complete password recovery with an emailed code."""
+
+    email: EmailStr
+    code: str = Field(pattern=r"^[0-9]{6}$")
+    new_password: str = Field(min_length=12, max_length=256)
+
+
+class UpcomingDrawCreate(BaseModel):
+    """Create one upcoming draw schedule entry."""
+
+    denomination: PrizeBondDenominations
+    draw_date: date
+
 
 class BondAddPayload(BaseModel):
     """Payload to add/delete bond(s) to a user."""
@@ -116,6 +162,46 @@ class AdminRegister(BaseModel):
         else:
             raise ValueError("Invalid Contact Number. Please use a valid Pakistani Mobile Operator Number.")
 
+class AdminCreate(BaseModel):
+    """Details for creating an administrator that will activate their account."""
+
+    username: str = Field(min_length=1, max_length=50)
+    email: EmailStr
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+
+
+class AdminActivate(BaseModel):
+    """One-time invitation and new password for administrator account activation."""
+
+    email: EmailStr
+    token: str = Field(min_length=32, max_length=128)
+    new_password: SecretStr = Field(min_length=12, max_length=256)
+
+
+class UserBlacklistRequest(BaseModel):
+    """Blacklist a user permanently or until a future timestamp."""
+
+    duration_until: AwareDatetime | None = Field(
+        default=None,
+        description="UTC timestamp when the blacklist expires; omit for permanent.",
+    )
+    reason: str | None = Field(
+        default=None,
+        description="Optional reason for blacklisting the user.",
+    )
+
+    @field_validator("duration_until")
+    @classmethod
+    def require_future_expiration(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value <= datetime.now(UTC):
+            raise ValueError("duration_until must be a future timestamp.")
+        return value
+
+
 class UserInfoUpdate(BaseModel):
     """Fields that can be updated by the user."""
     username: str|None = Field(default=None, description="The user's unique username.")
@@ -123,6 +209,23 @@ class UserInfoUpdate(BaseModel):
     first_name: str | None = Field(default=None, description="The user's first name, if provided.")
     last_name: str | None = Field(default=None, description="The user's last name, if provided.")
     contact: str | None = Field(default=None, description="The user's contact number, if provided.")
+    city: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="The user's city.",
+    )
+    address: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The user's street or postal address.",
+    )
+
+    @field_validator("city", "address", mode="before")
+    @classmethod
+    def normalize_profile_text(cls, value: object) -> object:
+        """Trim surrounding whitespace from profile location updates."""
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("contact")
     @classmethod
@@ -138,4 +241,41 @@ class UserInfoUpdate(BaseModel):
             raise ValueError("Invalid Contact Number. Please use a valid Pakistani Mobile Operator Number.")
 
 
- 
+class MarketListingCreate(BaseModel):
+    """Fields required to publish a marketplace listing."""
+
+    title: str = Field(min_length=1, max_length=150)
+    description: str | None = None
+    price: int = Field(ge=0)
+    category: Literal["buy", "sell"]
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value: object) -> object:
+        """Trim a listing title before validating it."""
+        return value.strip() if isinstance(value, str) else value
+
+
+class MarketListingUpdate(BaseModel):
+    """Fields a listing owner may update."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1, max_length=150)
+    description: str | None = None
+    price: int | None = Field(default=None, ge=0)
+    category: Literal["buy", "sell"] | None = None
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value: object) -> object:
+        """Trim an updated title before validating it."""
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("title", "price", "category")
+    @classmethod
+    def reject_null_required_fields(cls, value: object) -> object:
+        """Keep required listing fields from being cleared with null."""
+        if value is None:
+            raise ValueError("This field cannot be null.")
+        return value

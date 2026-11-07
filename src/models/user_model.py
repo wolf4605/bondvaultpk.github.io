@@ -62,6 +62,23 @@ class UserRegister(Model):
         examples=["03121234567", "+923001122344"]
         )
     "Contact number of the user."
+    city: str = Field(
+        min_length=1,
+        max_length=100,
+        description="City where the user lives.",
+        examples=["Karachi", "Lahore"],
+    )
+    address: str = Field(
+        min_length=1,
+        description="Street or postal address of the user.",
+        examples=["123 Example Road, Gulberg"],
+    )
+
+    @field_validator("city", "address", mode="before")
+    @classmethod
+    def normalize_profile_text(cls, value: object) -> object:
+        """Trim surrounding whitespace before validating required profile values."""
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("password_hash")
     @classmethod
@@ -91,6 +108,15 @@ class UserInfo(Model):
     first_name: str | None = Field(default=..., description="The user's first name, if provided.")
     last_name: str | None = Field(default=..., description="The user's last name, if provided.")
     contact: str | None = Field(default=..., description="The user's contact number, if provided.")
+    city: str = Field(
+        min_length=1,
+        max_length=100,
+        description="The user's city.",
+    )
+    address: str = Field(
+        min_length=1,
+        description="The user's street or postal address.",
+    )
     created_at: datetime = Field(default=..., description="When the user account was created.")
     is_verified: bool = Field(default=..., description="Whether the user's account is verified.")
     verified_by: UUID | None = Field(default=..., description="The verifying administrator's ID, if verified.")

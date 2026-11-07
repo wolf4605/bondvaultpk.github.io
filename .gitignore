@@ -1,15 +1,90 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 build/
 dist/
 wheels/
 *.egg-info
 
-# Virtual environments and IDE
-.venv
-.vscode
+# Virtual environments, local IDE settings, and generated files
+.venv/
+venv/
+.idea/
+.vscode/
 .env
-template
-logs
+.env.*
+!.env.example
+*.log
+logs/
+postgres-data/
+node_modules/
+*.pem
+*.key
+*.p12
+*.pfx
+
 test
+template
+
+
+# Flutter-generated files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Miscellaneous
+*.class
+*.pyc
+*.swp
+
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.ipr
+*.iws
+
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget Preview related
+.widget_preview/

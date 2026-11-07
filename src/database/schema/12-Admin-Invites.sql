@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS "admin_invites"(
+    "admin_id" UUID PRIMARY KEY REFERENCES "admins"("id") ON DELETE CASCADE,
+    "token_hash" CHAR(64) NOT NULL,
+    "expires_at" TIMESTAMPTZ NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

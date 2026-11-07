@@ -35,9 +35,11 @@ from src.configs import AppSettings
 from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
 from src.routers.bonds import router as bond_router
+from src.routers.drawlists import router as draw_router
 from src.routers.system import router as system_router
 from src.routers.user import router as user_router
 from src.routers.user_auth import router as user_auth_router
+from src.services.email_service import EmailDeliveryError
 from src.services.lifespan import lifespan
 from src.utilities.auth_tokens import ACCESS_TOKEN_EXPIRES_HEADER, ACCESS_TOKEN_HEADER
 
@@ -71,6 +73,7 @@ app.include_router(admin_auth_router)
 app.include_router(bond_router)
 app.include_router(admin_router)
 app.include_router(user_router)
+app.include_router(draw_router)
 app.include_router(system_router)
 
 app.add_middleware(
@@ -230,6 +233,10 @@ async def handle_app_error(
         status_code = 409
         code = "DATABASE_CONSTRAINT_VIOLATION"
         fallback_message = "A database constraint was violated."
+    elif isinstance(error, EmailDeliveryError):
+        status_code = 503
+        code = "EMAIL_DELIVERY_FAILURE"
+        fallback_message = "The email service is unavailable."
     elif isinstance(error, ValueError):
         status_code = 400
         code = "INVALID_VALUE"

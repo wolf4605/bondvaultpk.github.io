@@ -18,6 +18,13 @@
 from enum import IntEnum
 
 
+PRIZE_POSITION_NAMES = {
+    1: "1st Prize",
+    2: "2nd Prize",
+    3: "3rd Prize",
+}
+
+
 class PrizeBondDenominations(IntEnum):
     """Denominations for the Pakistani Prize Bonds."""
 

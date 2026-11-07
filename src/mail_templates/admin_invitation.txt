@@ -1,0 +1,17 @@
+Subject: Activate your BondVault PK administrator account
+
+Hello $username,
+
+An administrator account has been created for you.
+Username: $username
+Email: $email
+
+Set a password within $expiry_hours hours by sending a POST request to
+/admins/auth/activate with this JSON body:
+{
+  "email": "$email",
+  "token": "$token",
+  "new_password": "your new password (at least 12 characters)"
+}
+
+This activation token is single-use. Do not share it. No password was sent by email.

@@ -5,7 +5,7 @@ from pathlib import Path
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES = 10
+ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES = 15
 """Number of inactive minutes before an access token expires."""
 
 JWT_ALGORITHM = "HS256"

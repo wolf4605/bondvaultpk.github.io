@@ -14,14 +14,17 @@
 * License: MIT
 * Copyright© BondVault PK. All rights reserved.
 """
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from collections.abc import Mapping
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, Path, Query, status
 from starlette.exceptions import HTTPException
 
 from src import payloads
 
 from .. import models, responses
+from ..configs import PRIZE_POSITION_NAMES, PrizeBondDenominations
 from ..database import DB
 from ..utilities.auth_dependencies import get_current_user
 
@@ -30,6 +33,120 @@ router = APIRouter(
     tags= ["Prize Bonds"]
 )
 
+def _normalize_bond_number(bond_number: str) -> str:
+    """Pad a one-to-six digit bond number to its six-digit stored form."""
+    normalized_number = bond_number.zfill(6)
+    if normalized_number == "000000":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Prize bond numbers must be between 000001 and 999999.",
+        )
+    return normalized_number
+
+
+def _build_prize_bond_draw_match(
+    record: Mapping[str, Any],
+) -> responses.PrizeBondDrawMatch:
+    """Convert a database winner row into its public response model."""
+    prize_position = record["prize_position"]
+    return responses.PrizeBondDrawMatch(
+        bond_number=record["bond_number"],
+        denomination=record["denomination"],
+        prize_position=prize_position,
+        prize_name=PRIZE_POSITION_NAMES[prize_position],
+        prize_amount=record["prize_amount"],
+        draw_date=record["draw_date"],
+    )
+
+
+@router.get(
+    path="/draw-results/{denomination}/number/{bond_number}",
+    response_model=responses.PrizeBondSearchResponse,
+    summary="Search a prize-bond number in draw results",
+    description="Search all draw results for a bond number in the selected denomination. This endpoint is public.",
+)
+async def search_draw_results_by_number(
+    denomination: PrizeBondDenominations,
+    bond_number: str = Path(
+        pattern=r"^[0-9]{1,6}$",
+        description="Bond number containing one to six digits; shorter numbers are zero-padded.",
+    ),
+) -> responses.PrizeBondSearchResponse:
+    """Find every draw in which a bond number won a prize."""
+    normalized_number = _normalize_bond_number(bond_number)
+    records = await DB.fetch(
+        """
+        SELECT
+            w."bond_number",
+            d."denomination",
+            w."prize_position",
+            w."prize_amount",
+            d."draw_date"
+        FROM "draw_winners" AS w
+        JOIN "drawlists" AS d ON d."draw_id" = w."draw_id"
+        WHERE d."denomination" = $1
+          AND w."bond_number" = $2
+        ORDER BY d."draw_date" DESC
+        """,
+        denomination,
+        normalized_number,
+    )
+    results = [_build_prize_bond_draw_match(record) for record in records]
+    return responses.PrizeBondSearchResponse(
+        results=results,
+        total=len(results),
+    )
+
+
+@router.get(
+    path="/draw-results/{denomination}/range",
+    response_model=responses.PrizeBondSearchResponse,
+    summary="Search a prize-bond number range in draw results",
+    description="Find winning bonds in an inclusive number range and denomination across all draw dates. This endpoint is public.",
+)
+async def search_draw_results_by_range(
+    denomination: PrizeBondDenominations,
+    start_num: str = Query(
+        pattern=r"^[0-9]{1,6}$",
+        description="First bond number, inclusive; shorter numbers are zero-padded.",
+    ),
+    end_num: str = Query(
+        pattern=r"^[0-9]{1,6}$",
+        description="Last bond number, inclusive; shorter numbers are zero-padded.",
+    ),
+) -> responses.PrizeBondSearchResponse:
+    """Find winning bonds in an inclusive range across all draw dates."""
+    normalized_start = _normalize_bond_number(start_num)
+    normalized_end = _normalize_bond_number(end_num)
+    if normalized_start > normalized_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start number cannot be greater than end number.",
+        )
+
+    records = await DB.fetch(
+        """
+        SELECT
+            w."bond_number",
+            d."denomination",
+            w."prize_position",
+            w."prize_amount",
+            d."draw_date"
+        FROM "draw_winners" AS w
+        JOIN "drawlists" AS d ON d."draw_id" = w."draw_id"
+        WHERE d."denomination" = $1
+          AND w."bond_number" BETWEEN $2 AND $3
+        ORDER BY d."draw_date" DESC, w."bond_number" ASC
+        """,
+        denomination,
+        normalized_start,
+        normalized_end,
+    )
+    results = [_build_prize_bond_draw_match(record) for record in records]
+    return responses.PrizeBondSearchResponse(
+        results=results,
+        total=len(results),
+    )
 
 
 @router.get(
@@ -294,6 +411,7 @@ async def add_bonds(
                 ("bondlist_id", "bond_number")
                 SELECT
                 $1, unnest($2::VARCHAR[])
+                ON CONFLICT ("bondlist_id", "bond_number") DO NOTHING
             """,
             bondlist_id,
             payload.bonds

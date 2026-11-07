@@ -144,9 +144,21 @@ async def get_current_user(
     record = await DB.fetchrow(
         """
         SELECT "id", "username", "email", "first_name", "last_name",
-               "contact", "created_at", "is_verified", "verified_by", "last_login"
+               "contact", "city", "address", "created_at", "is_verified",
+               "verified_by", "last_login"
         FROM "users"
         WHERE "id" = $1
+          AND "is_verified" IS TRUE
+          AND NOT EXISTS (
+              SELECT 1
+              FROM "blacklist"
+              WHERE ("blacklist"."email" = "users"."email"
+                     OR "blacklist"."contact" = "users"."contact")
+                AND (
+                    "blacklist"."duration" IS NULL
+                    OR "blacklist"."duration" > CURRENT_TIMESTAMP
+                )
+          )
         """,
         claims.sub,
     )

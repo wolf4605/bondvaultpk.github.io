@@ -37,6 +37,10 @@ Tags = [
         "description": "Administrator-only operations.",
     },
     {
+        "name": "Drawlists",
+        "description": "Manage the drawlists. Contains methods to uplaod, delete or edit the drawlists.\n**Note: Only usable by admins**"
+    },
+    {
         "name": "System",
         "description": "Service health, availability, and user activity information.",
     },

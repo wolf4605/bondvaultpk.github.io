@@ -28,6 +28,7 @@ class RedisMonitor:
         self._redis = redis
         self._check_interval = check_interval
         self._retry_delay = retry_delay
+        self._outage_reported = False
 
     async def start(self) -> None:
         """Check Redis connectivity continuously and reconnect after outages."""
@@ -51,17 +52,20 @@ class RedisMonitor:
             attempt += 1
             try:
                 await self._redis.reconnect()
+                self._outage_reported = False
                 return
             except asyncio.CancelledError:
                 raise
             except (ConnectionError, OSError, RedisError, TimeoutError) as error:
-                logger.warning(
-                    "Redis reconnect attempt %s failed; retrying in %s seconds. "
-                    "Error: %s",
-                    attempt,
-                    self._retry_delay,
-                    error,
-                )
+                if not self._outage_reported:
+                    logger.warning(
+                        "Redis reconnect attempt %s failed; retrying in %s seconds. "
+                        "Error: %s",
+                        attempt,
+                        self._retry_delay,
+                        error.__cause__ or error,
+                    )
+                    self._outage_reported = True
                 await asyncio.sleep(self._retry_delay)
 
 

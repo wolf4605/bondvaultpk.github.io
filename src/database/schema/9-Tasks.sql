@@ -25,3 +25,20 @@ SELECT
 
 $$);
 
+SELECT
+    cron.unschedule(jobid)
+FROM
+    cron.job
+WHERE
+    jobname = 'cleanup_past_upcoming_draws';
+
+SELECT
+    cron.schedule(
+        'cleanup_past_upcoming_draws',
+        '0 * * * *',
+        $$ DELETE FROM "upcoming_draws"
+           WHERE "draw_date" < (
+               CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Karachi'
+           )::date;
+        $$
+    );

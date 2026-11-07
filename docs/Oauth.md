@@ -12,7 +12,7 @@ random secret containing at least 32 bytes. Do not commit a real signing key.
 
 The token-signing algorithm is `HS256`, configured in
 `src/configs/auth_configs.py`. The idle timeout is
-`ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES` in the same file and defaults to 10
+`ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES` in the same file and defaults to 15
 minutes. Change that value to tune the inactivity window.
 
 The application validates the secret during startup. Startup also connects to
@@ -88,8 +88,8 @@ Every successful authenticated request returns a renewed token in
 `X-Access-Token-Expires-In`. Clients must replace their stored access token
 with the value of `X-Access-Token` after each authenticated response. This
 makes the expiry a sliding inactivity timeout: an API call made after five
-idle minutes returns a token with a fresh ten-minute lifetime. If the client
-does not store the replacement token, the original token expires ten minutes
+idle minutes returns a token with a fresh fifteen-minute lifetime. If the client
+does not store the replacement token, the original token expires fifteen minutes
 after it was issued.
 
 The response headers are exposed by the CORS middleware for browser clients.

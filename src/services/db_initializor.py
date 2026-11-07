@@ -44,7 +44,7 @@ class DB_initializor:
 
         self.__TABLES = (
             "admins", "users", "bondlists", "drawlists",
-            "market", "reports", "blacklist"
+            "market", "reports", "blacklist", "upcoming_draws"
         )
         """A list of tables names that are to be found in the database."""
 
@@ -99,6 +99,7 @@ class DB_initializor:
                 "market" : "5-Market.sql",
                 "reports" : "6-Reports.sql",
                 "blacklist" : "7-Blacklist.sql",
+                "upcoming_draws" : "14-Upcoming-Draws.sql",
             }
 
             for name in missing_tables:
@@ -114,6 +115,12 @@ class DB_initializor:
         index_schema = schema_dir.joinpath("8-Indexes.sql").read_text(encoding="utf-8")
         tasks_schema = schema_dir.joinpath("9-Tasks.sql").read_text(encoding="utf-8")
         funcs_schema = schema_dir.joinpath("10-Functions&Triggers.sql").read_text(encoding="utf-8")
+        admin_invites_schema = schema_dir.joinpath(
+            "12-Admin-Invites.sql"
+        ).read_text(encoding="utf-8")
+        admin_tasks_schema = schema_dir.joinpath(
+            "13-Admin-Tasks.sql"
+        ).read_text(encoding="utf-8")
 
         async with self.__db.transaction() as conn:
             await conn.execute(index_schema)
@@ -122,8 +129,12 @@ class DB_initializor:
             logger.info("Successfully executed [cyan]9-Tasks.sql[/].")
             await conn.execute(funcs_schema)
             logger.info("Successfully executed [cyan]10-Functions&Triggers.sql[/].")
+            await conn.execute(admin_invites_schema)
+            logger.info("Successfully executed [cyan]12-Admin-Invites.sql[/].")
+            await conn.execute(admin_tasks_schema)
+            logger.info("Successfully executed [cyan]13-Admin-Tasks.sql[/].")
 
-
+    
     async def __populate_empty_tables(self):
         """Populates the empty tables with some seed data."""
 
@@ -170,6 +181,8 @@ class DB_initializor:
                             first_name="New",
                             last_name="User",
                             contact = "03120987654",
+                            city="Karachi",
+                            address="Sample Street 1",
                         ),
                         models.UserRegister(
                             username="bob",
@@ -178,6 +191,8 @@ class DB_initializor:
                             first_name="Bob",
                             last_name="Murphy",
                             contact = "03120004455",
+                            city="Lahore",
+                            address="Sample Street 2",
                         ),
                     ]
 
@@ -186,9 +201,9 @@ class DB_initializor:
                             """
                             INSERT INTO "users" (
                                 "username", "email", "password_hash", "first_name",
-                                "last_name", "contact"
+                                "last_name", "contact", "city", "address", "is_verified"
                             )
-                            VALUES ($1, $2, $3, $4, $5, $6)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
                             """,
                             item.username,
                             item.email,
@@ -196,9 +211,71 @@ class DB_initializor:
                             item.first_name,
                             item.last_name,
                             item.contact,
+                            item.city,
+                            item.address,
                         )
+                elif name == "market":
+                    await self.__db.execute(
+                        """
+                        INSERT INTO "market" (
+                            "posted_by", "title", "description", "price", "category"
+                        )
+                        SELECT
+                            "users"."id", seed."title", seed."description",
+                            seed."price", seed."category"
+                        FROM (
+                            VALUES
+                                (
+                                    'user',
+                                    'Prize bonds for sale',
+                                    'Selling a selection of prize bonds in good condition.',
+                                    5000,
+                                    'sell'
+                                ),
+                                (
+                                    'bob',
+                                    'Looking for Rs. 750 bonds',
+                                    'Interested in buying Rs. 750 prize bonds.',
+                                    750,
+                                    'buy'
+                                ),
+                                (
+                                    'user',
+                                    'Wanted: Rs. 1500 bonds',
+                                    'Looking to purchase Rs. 1500 prize bonds.',
+                                    1500,
+                                    'buy'
+                                )
+                        ) AS seed("username", "title", "description", "price", "category")
+                        JOIN "users" ON "users"."username" = seed."username"
+                        """
+                    )
+                    logger.info("Sample marketplace listings added.")
+
+                elif name == "reports":
+                    await self.__db.execute(
+                        """
+                        INSERT INTO "reports" ("reported_by", "subject", "content")
+                        SELECT "users"."id", seed."subject", seed."content"
+                        FROM (
+                            VALUES
+                                (
+                                    'user',
+                                    'Sample report: listing inquiry',
+                                    'This is a sample report for the development database.'
+                                ),
+                                (
+                                    'bob',
+                                    'Sample report: account assistance',
+                                    'This is a sample account assistance report.'
+                                )
+                        ) AS seed("username", "subject", "content")
+                        JOIN "users" ON "users"."username" = seed."username"
+                        """
+                    )
+                    logger.info("Sample reports added.")
                 else:
-                    return True
+                    continue
 
 
     async def start(self):
@@ -213,15 +290,16 @@ class DB_initializor:
             await self.__create_tables()
             await self.__create_func_triggers()
             await self.__populate_empty_tables()
-            await self.__db.pool_close()
             
         except ConnectionError:
-            self._is_intialized = False
+            self.__is_initialized = False
             raise
         except RuntimeError:
-            self._is_intialized = False
+            self.__is_initialized = False
             raise
         except Exception as error:
-            self._is_intialized = False
+            self.__is_initialized = False
             raise RuntimeError("The database could not be initialized.") from error
+        finally:
+            await self.__db.pool_close()
         

@@ -1,0 +1,8 @@
+Subject: BondVault PK account $action
+
+Hello $username,
+
+An administrator has $action your BondVault PK account.
+$details
+
+If you believe this was a mistake, contact BondVault PK support.

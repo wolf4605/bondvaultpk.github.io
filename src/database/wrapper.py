@@ -76,13 +76,6 @@ class Database:
             )
         except Exception as error:
             self._pool = None
-            logger.warning(
-                "Could not open the PostgreSQL connection pool (host=%s, port=%s, database=%s): %s",
-                DBConfigs.POSTGRES_HOST,
-                DBConfigs.POSTGRES_PORT,
-                DBConfigs.POSTGRES_DB,
-                error,
-            )
             raise ConnectionError(
                 "Unable to open the PostgreSQL connection pool."
             ) from error
@@ -237,8 +230,7 @@ class Database:
             RuntimeError,
             ValueError,
             TimeoutError,
-        ) as error:
-            logger.warning("PostgreSQL health check failed: %s", error)
+        ):
             return False
 
 

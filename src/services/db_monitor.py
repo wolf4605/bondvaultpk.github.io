@@ -46,6 +46,7 @@ class DatabaseMonitor:
         self._database = database
         self._check_interval = check_interval
         self._retry_delay = retry_delay
+        self._outage_reported = False
 
     async def start(self) -> None:
         """Starts the Databse Monitor."""
@@ -65,8 +66,7 @@ class DatabaseMonitor:
                 RuntimeError,
                 asyncpg.exceptions.PostgresError,
                 asyncpg.exceptions.InterfaceError,
-            ) as error:
-                logger.warning("PostgreSQL health check failed: %s", error)
+            ):
                 is_healthy = False
 
             if not is_healthy:
@@ -108,6 +108,7 @@ class DatabaseMonitor:
                 failure = error
 
             if is_healthy:
+                self._outage_reported = False
                 if phase == "startup":
                     logger.success(
                         "PostgreSQL connection ready (host=%s, port=%s, database=%s).",
@@ -124,16 +125,22 @@ class DatabaseMonitor:
                     )
                 return True
 
-            logger.warning(
-                "PostgreSQL %s attempt %s failed; retrying in %s seconds "
-                "(host=%s, port=%s, database=%s).%s",
-                "connection" if phase == "startup" else "reconnect",
-                attempt,
-                self._retry_delay,
-                configs.DBConfigs.POSTGRES_HOST,
-                configs.DBConfigs.POSTGRES_PORT,
-                configs.DBConfigs.POSTGRES_DB,
-                f" Error: {failure}" if failure is not None else "",
-            )
+            if not self._outage_reported:
+                logger.warning(
+                    "PostgreSQL %s attempt %s failed; retrying in %s seconds "
+                    "(host=%s, port=%s, database=%s).%s",
+                    "connection" if phase == "startup" else "reconnect",
+                    attempt,
+                    self._retry_delay,
+                    configs.DBConfigs.POSTGRES_HOST,
+                    configs.DBConfigs.POSTGRES_PORT,
+                    configs.DBConfigs.POSTGRES_DB,
+                    (
+                        f" Error: {failure.__cause__ or failure}"
+                        if failure is not None
+                        else ""
+                    ),
+                )
+                self._outage_reported = True
 
             await asyncio.sleep(self._retry_delay)

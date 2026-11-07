@@ -1,0 +1,9 @@
+Subject: BondVault PK marketplace listing removed
+
+Hello $username,
+
+An administrator removed the following listing from the BondVault PK marketplace:
+
+$listing_title
+
+If you believe this was a mistake, contact BondVault PK support.

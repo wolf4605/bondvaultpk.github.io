@@ -16,8 +16,12 @@
 """"""Administrator login and authenticated profile endpoints."""
 
 import logging
+import hashlib
+import hmac
+import secrets
 from typing import Annotated
-from uuid import uuid4
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -32,6 +36,10 @@ from ..utilities.auth_dependencies import (
     revoke_sessions,
 )
 from ..utilities.auth_tokens import create_access_token, token_lifetime
+from ..services.email_service import (
+    ADMIN_INVITE_EXPIRY_HOURS,
+    send_admin_invitation_email,
+)
 
 logger = logging.getLogger("application.audit")
 router = APIRouter(prefix="/admins",
@@ -39,16 +47,201 @@ router = APIRouter(prefix="/admins",
 
 
 @router.post(
-        path = "",
-        response_model = responses.AdminRegister,
-        summary="Register an Admin",
-        response_description="Details of the created administrator account."
+    path="",
+    response_model=models.AdminInfo,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an administrator account",
 )
 async def register_admin(
-    admin: Annotated[models.AdminInfo, get_current_admin],
-    payload
-):
-    """Add a new admin account to the admins."""
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+    payload: payloads.AdminCreate,
+) -> models.AdminInfo:
+    """Create an admin and email a one-time password-setup invitation."""
+    if not admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a superuser can create administrator accounts.",
+        )
+
+    invite_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(invite_token.encode("utf-8")).hexdigest()
+    random_password_hash = hash_password(secrets.token_urlsafe(48))
+    invite_expires_at = datetime.now(UTC) + timedelta(
+        hours=ADMIN_INVITE_EXPIRY_HOURS
+    )
+    async with DB.transaction() as connection:
+        record = await connection.fetchrow(
+            """
+            INSERT INTO "admins" (
+                "username", "password_hash", "email", "first_name",
+                "last_name", "is_superuser"
+            )
+            VALUES ($1, $2, $3, $4, $5, FALSE)
+            RETURNING "id", "username", "email", "first_name", "last_name",
+                      "contact", "created_at", "is_superuser"
+            """,
+            payload.username,
+            random_password_hash,
+            str(payload.email),
+            payload.first_name,
+            payload.last_name,
+        )
+        if record is None:
+            raise RuntimeError("The administrator account was not created.")
+        await connection.execute(
+            """
+            INSERT INTO "admin_invites" ("admin_id", "token_hash", "expires_at")
+            VALUES ($1, $2, $3)
+            """,
+            record["id"],
+            token_hash,
+            invite_expires_at,
+        )
+
+    logger.info(
+        "administrator invitation created",
+        extra={
+            "event": "admin.invitation.created",
+            "subject_id": str(record["id"]),
+            "actor_id": str(admin.id),
+        },
+    )
+    try:
+        await send_admin_invitation_email(
+            payload.email,
+            payload.username,
+            invite_token,
+        )
+    except RuntimeError as error:
+        logger.exception(
+            "administrator created but invitation email failed",
+            extra={"event": "admin.invitation.email_failed"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                f"Administrator {record['id']} was created, but the invitation "
+                "email could not be sent. Retry with "
+                f"POST /admins/{record['id']}/invite."
+            ),
+        ) from error
+
+    return models.AdminInfo.model_validate(dict(record))
+
+
+@router.post(
+    "/{admin_id}/invite",
+    response_model=responses.BaseResponse,
+    summary="Resend an administrator activation invitation",
+)
+async def resend_admin_invitation(
+    admin_id: UUID,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> responses.BaseResponse:
+    """Rotate and resend an activation token for a pending administrator."""
+    if not admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a superuser can resend administrator invitations.",
+        )
+
+    invite_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(invite_token.encode("utf-8")).hexdigest()
+    invite_expires_at = datetime.now(UTC) + timedelta(
+        hours=ADMIN_INVITE_EXPIRY_HOURS
+    )
+    async with DB.transaction() as connection:
+        record = await connection.fetchrow(
+            """
+            SELECT a."email", a."username"
+            FROM "admins" AS a
+            JOIN "admin_invites" AS i ON i."admin_id" = a."id"
+            WHERE a."id" = $1
+            FOR UPDATE OF i
+            """,
+            admin_id,
+        )
+        if record is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pending administrator invitation not found.",
+            )
+        await connection.execute(
+            """
+            UPDATE "admin_invites"
+            SET "token_hash" = $1, "expires_at" = $2, "created_at" = CURRENT_TIMESTAMP
+            WHERE "admin_id" = $3
+            """,
+            token_hash,
+            invite_expires_at,
+            admin_id,
+        )
+
+    try:
+        await send_admin_invitation_email(
+            record["email"],
+            record["username"],
+            invite_token,
+        )
+    except RuntimeError as error:
+        logger.exception(
+            "administrator invitation resend failed",
+            extra={"event": "admin.invitation.email_failed"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The invitation token was rotated, but its email could not be sent.",
+        ) from error
+
+    return responses.BaseResponse(message="Administrator invitation sent.")
+
+
+@router.post(
+    "/auth/activate",
+    response_model=responses.BaseResponse,
+    summary="Set a password using a one-time administrator invitation",
+)
+async def activate_admin_account(
+    payload: payloads.AdminActivate,
+) -> responses.BaseResponse:
+    """Consume an unexpired invitation and set the administrator's password."""
+    supplied_token_hash = hashlib.sha256(payload.token.encode("utf-8")).hexdigest()
+
+    async with DB.transaction() as connection:
+        record = await connection.fetchrow(
+            """
+            SELECT i."admin_id", i."token_hash"
+            FROM "admin_invites" AS i
+            JOIN "admins" AS a ON a."id" = i."admin_id"
+            WHERE LOWER(a."email") = LOWER($1)
+              AND i."expires_at" > CURRENT_TIMESTAMP
+            FOR UPDATE OF i
+            """,
+            str(payload.email),
+        )
+        if record is None or not hmac.compare_digest(
+            record["token_hash"].strip(),
+            supplied_token_hash,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The administrator invitation is invalid or expired.",
+            )
+
+        new_password_hash = hash_password(payload.new_password.get_secret_value())
+        await connection.execute(
+            'UPDATE "admins" SET "password_hash" = $1 WHERE "id" = $2',
+            new_password_hash,
+            record["admin_id"],
+        )
+        await connection.execute(
+            'DELETE FROM "admin_invites" WHERE "admin_id" = $1',
+            record["admin_id"],
+        )
+
+    return responses.BaseResponse(
+        message="Administrator account activated. You can now sign in."
+    )
 
 
 @router.post(

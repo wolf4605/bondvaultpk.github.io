@@ -1,5 +1,6 @@
 """Application wrapper around Redis connection and session operations."""
 
+import hashlib
 from typing import Literal
 from uuid import UUID
 
@@ -14,6 +15,17 @@ logger = get_logger()
 
 class RedisWrapper:
     """Own a Redis connection and expose session-oriented operations."""
+
+    EMAIL_VERIFICATION_TTL_SECONDS = 600
+    EMAIL_VERIFICATION_RESEND_SECONDS = 60
+    EMAIL_VERIFICATION_IP_LIMIT = 5
+    EMAIL_VERIFICATION_IP_WINDOW_SECONDS = 3600
+    EMAIL_VERIFICATION_MAX_ATTEMPTS = 5
+    PASSWORD_RECOVERY_TTL_SECONDS = 600
+    PASSWORD_RECOVERY_RESEND_SECONDS = 60
+    PASSWORD_RECOVERY_IP_LIMIT = 5
+    PASSWORD_RECOVERY_IP_WINDOW_SECONDS = 3600
+    PASSWORD_RECOVERY_MAX_ATTEMPTS = 5
 
     def __init__(self) -> None:
         self._client: Redis | None = None
@@ -40,13 +52,6 @@ class RedisWrapper:
             await client.ping()
         except Exception as error:
             await client.aclose()
-            logger.warning(
-                "Redis session store connection failed (host=%s, port=%s, database=%s): %s",
-                host,
-                port,
-                database,
-                error,
-            )
             raise ConnectionError("Unable to connect to Redis.") from error
 
         self._client = client
@@ -86,9 +91,117 @@ class RedisWrapper:
         """Check whether Redis responds to a ping."""
         try:
             return bool(await self._require_client().ping())
-        except (ConnectionError, RedisError, OSError, TimeoutError) as error:
-            logger.warning("Redis session store health check failed: %s", error)
+        except (ConnectionError, RedisError, OSError, TimeoutError):
             return False
+
+    async def create_email_verification_code(
+        self,
+        email: str,
+        code: str,
+        client_ip: str,
+        *,
+        purpose: Literal["email-verification", "password-recovery"] = "email-verification",
+    ) -> int:
+        """Store a short-lived code unless the email or client is rate-limited."""
+        email_digest = hashlib.sha256(email.casefold().encode()).hexdigest()
+        client_digest = hashlib.sha256(client_ip.encode()).hexdigest()
+        if purpose == "password-recovery":
+            ttl_seconds = self.PASSWORD_RECOVERY_TTL_SECONDS
+            resend_seconds = self.PASSWORD_RECOVERY_RESEND_SECONDS
+            ip_limit = self.PASSWORD_RECOVERY_IP_LIMIT
+            ip_window_seconds = self.PASSWORD_RECOVERY_IP_WINDOW_SECONDS
+        else:
+            ttl_seconds = self.EMAIL_VERIFICATION_TTL_SECONDS
+            resend_seconds = self.EMAIL_VERIFICATION_RESEND_SECONDS
+            ip_limit = self.EMAIL_VERIFICATION_IP_LIMIT
+            ip_window_seconds = self.EMAIL_VERIFICATION_IP_WINDOW_SECONDS
+
+        key_prefix = f"auth:{purpose}"
+        result = await self._require_client().eval(
+            """
+            if redis.call("EXISTS", KEYS[1]) == 1 then
+                return 1
+            end
+            local request_count = tonumber(redis.call("GET", KEYS[2]) or "0")
+            if request_count >= tonumber(ARGV[4]) then
+                return 2
+            end
+            redis.call("SET", KEYS[1], "1", "EX", ARGV[2])
+            redis.call("SET", KEYS[3], ARGV[1], "EX", ARGV[3])
+            local new_count = redis.call("INCR", KEYS[2])
+            if new_count == 1 then
+                redis.call("EXPIRE", KEYS[2], ARGV[5])
+            end
+            return 0
+            """,
+            3,
+            f"{key_prefix}:email-cooldown:{email_digest}",
+            f"{key_prefix}:ip-count:{client_digest}",
+            f"{key_prefix}:code:{email_digest}",
+            code,
+            resend_seconds,
+            ttl_seconds,
+            ip_limit,
+            ip_window_seconds,
+        )
+        return int(result)
+
+    async def verify_email_verification_code(
+        self,
+        email: str,
+        code: str,
+        *,
+        purpose: Literal["email-verification", "password-recovery"] = "email-verification",
+    ) -> bool:
+        """Atomically compare a code, allowing at most five guesses."""
+        email_digest = hashlib.sha256(email.casefold().encode()).hexdigest()
+        if purpose == "password-recovery":
+            ttl_seconds = self.PASSWORD_RECOVERY_TTL_SECONDS
+            max_attempts = self.PASSWORD_RECOVERY_MAX_ATTEMPTS
+        else:
+            ttl_seconds = self.EMAIL_VERIFICATION_TTL_SECONDS
+            max_attempts = self.EMAIL_VERIFICATION_MAX_ATTEMPTS
+
+        key_prefix = f"auth:{purpose}"
+        result = await self._require_client().eval(
+            """
+            local expected_code = redis.call("GET", KEYS[1])
+            if not expected_code then
+                return 0
+            end
+            if expected_code == ARGV[1] then
+                redis.call("DEL", KEYS[1], KEYS[2])
+                return 1
+            end
+            local attempts = redis.call("INCR", KEYS[2])
+            if attempts == 1 then
+                redis.call("EXPIRE", KEYS[2], ARGV[2])
+            end
+            if attempts >= tonumber(ARGV[3]) then
+                redis.call("DEL", KEYS[1], KEYS[2])
+            end
+            return 0
+            """,
+            2,
+            f"{key_prefix}:code:{email_digest}",
+            f"{key_prefix}:attempts:{email_digest}",
+            code,
+            ttl_seconds,
+            max_attempts,
+        )
+        return result == 1
+
+    async def discard_email_verification_code(
+        self,
+        email: str,
+        *,
+        purpose: Literal["email-verification", "password-recovery"] = "email-verification",
+    ) -> None:
+        """Remove a pending code when its email could not be delivered."""
+        email_digest = hashlib.sha256(email.casefold().encode()).hexdigest()
+        await self._require_client().delete(
+            f"auth:{purpose}:code:{email_digest}"
+        )
 
     def _require_client(self) -> Redis:
         if self._client is None:
