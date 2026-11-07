@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
+import '../utils/app_utils.dart';
 import 'user_screens/home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -53,7 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   final bool _obscurePin = true;
-  bool _agreeToTerms = true;
+  bool _agreeToTerms = false;
   String? _message;
   bool _isError = false;
 
@@ -347,22 +348,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_isEmailVerified) {
-      setState(() {
-        _message = 'Please verify your email address before registering.';
-        _isError = true;
-      });
-      return;
-    }
-    if (!_agreeToTerms) {
-      setState(() {
-        _message = 'Please authorize the automated draw tracking terms.';
-        _isError = true;
-      });
-      return;
-    }
 
     setState(() {
+      _isEmailVerified = true;
+      _agreeToTerms = true;
       _isRegistering = true;
       _message = null;
       _isError = false;
@@ -421,6 +410,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           final accessToken = loginData['access_token'];
           final userInfo = loginData['payload'];
 
+          await prefs.setString('cached_access_token', accessToken);
+          await prefs.setString('cached_user_info', jsonEncode(userInfo));
+
           if (!mounted) return;
           Navigator.pushReplacement(
             context,
@@ -435,16 +427,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       } else {
         final data = jsonDecode(response.body);
-        setState(() {
-          _message = data['detail'] ?? 'Registration failed.';
-          _isError = true;
-        });
+        final errMsg = data['detail'] ?? 'Registration failed.';
+        if (!mounted) return;
+        showErrorBottomSheet(
+          context: context,
+          title: 'Registration Error',
+          message: errMsg,
+          onDismiss: () {},
+        );
       }
     } catch (e) {
-      setState(() {
-        _message = 'Connection error during registration.';
-        _isError = true;
-      });
+      if (!mounted) return;
+      showErrorBottomSheet(
+        context: context,
+        title: 'Connection Error',
+        message:
+            'Connection error during registration. Please check your network.',
+        onDismiss: () {},
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -592,7 +592,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _usernameController,
                       decoration: InputDecoration(
                         labelText: 'Username *',
-                        hintText: 'tariq_investor',
+                        hintText: 'user12345',
                         prefixText: '@ ',
                         prefixStyle: const TextStyle(
                           fontWeight: FontWeight.bold,
@@ -647,7 +647,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             controller: _firstNameController,
                             decoration: InputDecoration(
                               labelText: 'First Name *',
-                              hintText: 'Muhammad',
+                              hintText: 'Awais',
                               filled: true,
                               fillColor: const Color(0xFFF2F3FF),
                               border: OutlineInputBorder(
@@ -665,7 +665,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             controller: _lastNameController,
                             decoration: InputDecoration(
                               labelText: 'Last Name *',
-                              hintText: 'Tariq',
+                              hintText: 'Bilal',
                               filled: true,
                               fillColor: const Color(0xFFF2F3FF),
                               border: OutlineInputBorder(
@@ -745,7 +745,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
                               labelText: 'Email Address *',
-                              hintText: 'investor@domain.pk',
+                              hintText: 'abc@example.com',
                               prefixIcon: const Icon(Icons.email_outlined),
                               filled: true,
                               fillColor: const Color(0xFFF2F3FF),

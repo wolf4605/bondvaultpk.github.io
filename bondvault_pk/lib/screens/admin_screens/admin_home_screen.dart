@@ -23,7 +23,8 @@ class AdminHomeScreen extends StatefulWidget {
 }
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
-  int _currentIndex = 0; // 0: Overview, 1: Users, 2: Market, 3: Draws, 4: Settings
+  int _currentIndex =
+      0; // 0: Overview, 1: Users, 2: Market, 3: Draws, 4: Settings
   bool _isLoadingStats = true;
   int _totalUsers = 0;
   List<dynamic> _usersList = [];
@@ -490,8 +491,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     Expanded(
                       child: _buildSubStatusCard(
                         'Backend\nAPI',
-                        'Operational',
-                        '99.98% uptime',
                         'Live',
                         Colors.green,
                       ),
@@ -500,8 +499,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     Expanded(
                       child: _buildSubStatusCard(
                         'Database\n(PG)',
-                        'Connected /\nHealthy',
-                        '4ms latency',
                         'OK',
                         Colors.green,
                       ),
@@ -510,8 +507,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     Expanded(
                       child: _buildSubStatusCard(
                         'Redis\n(Cache)',
-                        'Memory 24%',
-                        '1.2ms latency',
                         'Active',
                         Colors.green,
                       ),
@@ -740,13 +735,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildSubStatusCard(
-    String title,
-    String subtitle,
-    String footer,
-    String badgeText,
-    Color badgeColor,
-  ) {
+  Widget _buildSubStatusCard(String title, String badgeText, Color badgeColor) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -786,19 +775,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            footer,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF003527),
-            ),
-          ),
         ],
       ),
     );

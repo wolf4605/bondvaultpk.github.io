@@ -1,4 +1,19 @@
-"""Import text draw results and queue draw-list follow-up tasks."""
+"""
+* Project Name: BONDVAULT PK
+
+* Description: 
+
+* Author: Wolf4605
+* Email: mab4605@gmail.com
+
+* Date: 2026-11-05 21:19:45
+
+* Last Modified by: Wolf4605
+* Last Modified time: 2026-11-07 21:23:19
+
+* License: MIT
+* Copyright© BondVault PK. All rights reserved.
+""""""Import text draw results and queue draw-list follow-up tasks."""
 
 import asyncio
 from datetime import date, datetime, timedelta, timezone
@@ -14,8 +29,8 @@ from ..utilities.scrapper import (
     PrizeBondTextResult,
     create_prize_bond_client,
 )
-from ..utilities.scrapper.source2_client import PrizeBondPKClient
 from ..utilities.scrapper.models import ScheduledDraw, UpcomingDrawScraper
+from ..utilities.scrapper.source2_client import PrizeBondPKClient
 from .drawlist_import import (
     import_text_draw_result,
     remove_completed_drawlist_tasks,
@@ -211,6 +226,7 @@ async def _upsert_upcoming_draws(
 
 async def run_drawlist_automation() -> None:
     """Run immediately, then repeat every day at 10 PM Pakistan Standard Time."""
+    logger.info("Starting drawlist and schedule automation")
     next_run = _next_scheduled_run(datetime.now(PAKISTAN_STANDARD_TIME))
     await _run_drawlist_cycle()
 
