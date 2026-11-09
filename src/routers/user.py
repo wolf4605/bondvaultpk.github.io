@@ -210,13 +210,19 @@ async def create_market_listing(
 async def fetch_market_listings(
     user: Annotated[models.UserInfo, Depends(get_current_user)],
 ) -> list[responses.MarketListingInfo]:
-    """Return all marketplace listings without disclosing owner contact details."""
+    """Return all marketplace listings along with seller/owner contact details."""
     records = await DB.fetch(
         """
-        SELECT "id", "posted_by", "title", "description", "price",
-               "category", "created_at"
+        SELECT market."id", market."posted_by", market."title",
+               market."description", market."price", market."category",
+               market."created_at",
+               users."username" AS "owner_username",
+               TRIM(CONCAT(users."first_name", ' ', users."last_name")) AS "owner_name",
+               users."contact" AS "owner_contact",
+               users."email" AS "owner_email"
         FROM "market"
-        ORDER BY "created_at" DESC, "id"
+        LEFT JOIN "users" ON users."id" = market."posted_by"
+        ORDER BY market."created_at" DESC, market."id"
         """
     )
     return [

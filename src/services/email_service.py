@@ -102,6 +102,34 @@ async def send_admin_invitation_email(
     )
 
 
+async def send_admin_password_changed_email(
+    recipient: EmailStr,
+    username: str,
+    password: str,
+) -> None:
+    """Notify an administrator of a superuser-set password."""
+    subject, body = _render_mail_template(
+        "admin_password_changed",
+        {
+            "username": username,
+            "password": password,
+        },
+    )
+    await send_email(recipient, subject, body)
+
+
+async def send_admin_deleted_email(
+    recipient: EmailStr,
+    username: str,
+) -> None:
+    """Notify an administrator that their account was deleted."""
+    subject, body = _render_mail_template(
+        "admin_deleted",
+        {"username": username},
+    )
+    await send_email(recipient, subject, body)
+
+
 async def send_user_action_email(
     recipient: EmailStr,
     username: str,

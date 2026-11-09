@@ -51,29 +51,32 @@ Administrators can manage schedule entries through the API:
 
 The create and delete operations require an administrator bearer token.
 
-## Manual text draw-list upload
+## Manual draw-list upload
 
-An authenticated administrator can add a draw result with
-`POST /drawlists` as multipart form data containing `denomination`, `draw_date`
-(ISO `YYYY-MM-DD`), and a `.txt` file. The file must contain first-, second-,
-and third-prize sections with their winning bond numbers. The parser accepts
-the National Savings text layout, with a prize heading followed by the winning
-number(s), for example:
+An authenticated administrator can add a draw result with `POST /drawlists`
+using a JSON body containing the denomination, ISO draw date, and winning
+numbers grouped by prize position:
 
-```text
-First Prize of Rs. 700,000/-
-123456
-Second Prize of Rs. 200,000/-
-234567 345678 456789
-Third Prize of Rs. 1,000/- each)
-567890
+```json
+{
+  "denomination": 100,
+  "draw_date": "2027-01-15",
+  "first_prize_numbers": ["123456"],
+  "second_prize_numbers": ["234567", "345678", "456789"],
+  "third_prize_numbers": ["567890"]
+}
 ```
 
-The first- and second-prize winner counts are validated for the selected
-denomination. All three prize sections must contain winners. Numbers are stored
-as six digits; shorter numeric entries are zero-padded. Missing prize
-sections, invalid numbers, and duplicate numbers are rejected before database
-changes. A draw that already exists for the selected denomination and date is
-not replaced; the endpoint returns `409 Conflict`. Newly added draw rows and
+Each winning-number field is a non-empty array. The first- and second-prize
+counts are validated for the selected denomination. Numbers must be in the
+`000001`–`999999` range, are stored as six digits, and cannot be duplicated
+within a draw. Prize amounts are assigned by the backend according to the
+denomination. A draw that already exists for the selected denomination and date
+is not replaced; the endpoint returns `409 Conflict`. Newly added draw rows and
 winners are inserted atomically, then completed admin tasks for that draw are
 removed.
+
+An authenticated administrator can delete an imported draw list with
+`DELETE /drawlists/{draw_id}`. The draw's winning-bond rows are deleted
+automatically by the database foreign-key cascade. The endpoint returns
+`404 Not Found` when the draw ID does not exist.

@@ -19,7 +19,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from redis.exceptions import RedisError
 from starlette.exceptions import HTTPException
 
@@ -30,6 +30,7 @@ from ..services.email_service import (
     send_market_listing_removed_email,
     send_user_action_email,
 )
+from ..payloads.basic import MarketListingRemovalRequest
 from ..utilities.auth_dependencies import get_current_admin, revoke_sessions
 
 router = APIRouter(prefix="/admins",
@@ -121,10 +122,44 @@ async def fetch_all(admin: Annotated[models.AdminInfo, Depends(get_current_admin
             users.append(models.UserInfo(**dict(record)))
 
     return responses.AllUsersResponse(
-        message= f"Found {len(users)} users.",
-        users=users
+        message=f"Found {len(users)} users.",
+        users=users,
     )
 
+
+@router.get(
+    "/audit",
+    response_model=responses.AdminAuditEventsResponse,
+    summary="Fetch administrator API audit events",
+)
+async def fetch_admin_audit_events(
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> responses.AdminAuditEventsResponse:
+    """Return recent administrator API requests, newest first."""
+    total = await DB.fetchval('SELECT COUNT(*) FROM "admin_audit"')
+    records = await DB.fetch(
+        """
+        SELECT "event_id", "occurred_at", "actor_admin_id", "action",
+               "subject", "subject_id", "description", "http_method",
+               "route", "status_code", "duration_ms", "client_ip"::TEXT,
+               "user_agent", "request_id"
+        FROM "admin_audit"
+        ORDER BY "occurred_at" DESC, "event_id" DESC
+        LIMIT $1 OFFSET $2
+        """,
+        limit,
+        offset,
+    )
+    return responses.AdminAuditEventsResponse(
+        message="Administrator audit events retrieved.",
+        events=[
+            responses.AdminAuditEvent.model_validate(dict(record))
+            for record in records
+        ],
+        total=total or 0,
+    )
 
 @router.get(
     "/users/blacklist",
@@ -199,7 +234,7 @@ async def fetch_market_listings(
 async def delete_market_listing(
     listing_id: UUID,
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
-    payload: payloads.MarketListingRemovalRequest,
+    payload: MarketListingRemovalRequest,
 ) -> responses.BaseResponse:
     """Delete any marketplace listing and email its owner the reason."""
     async with DB.transaction() as connection:

@@ -8,6 +8,7 @@ from urllib.parse import urljoin, urlsplit
 
 from lxml import html
 
+from ...configs.prize_bonds import EXPECTED_PRIZE_NUMBER_COUNTS
 from .models import PrizeBondDrawResult
 
 _DENOMINATION_PATTERN = re.compile(r"Rs\.?\s*([\d,]+)", re.IGNORECASE)
@@ -24,14 +25,6 @@ _CURRENCY_AMOUNT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _WINNING_NUMBER_PATTERN = re.compile(r"(?<!\d)\d{3,6}(?!\d)")
-_EXPECTED_PRIZE_NUMBER_COUNTS = {
-    100: (1, 3),
-    200: (1, 5),
-    750: (1, 3),
-    1500: (1, 3),
-    25000: (2, 5),
-    40000: (1, 3),
-}
 
 
 def _extract_drawlist_links(content: bytes, page_url: str) -> dict[int, str]:
@@ -122,7 +115,7 @@ def _parse_prize_numbers(
     denomination: int,
 ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     try:
-        expected_first, expected_second = _EXPECTED_PRIZE_NUMBER_COUNTS[denomination]
+        expected_first, expected_second = EXPECTED_PRIZE_NUMBER_COUNTS[denomination]
     except KeyError as error:
         raise ValueError(
             f"Unsupported prize bond denomination: {denomination}"

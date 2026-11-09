@@ -69,6 +69,32 @@ class AllUsersResponse(BaseResponse):
     users: list[models.UserInfo] = []
 
 
+class AdminAuditEvent(BaseModel):
+    """One audited administrator API request."""
+
+    event_id: UUID
+    occurred_at: datetime
+    actor_admin_id: UUID | None
+    action: str
+    subject: str
+    subject_id: str | None
+    description: str
+    http_method: str
+    route: str
+    status_code: int
+    duration_ms: float
+    client_ip: str | None
+    user_agent: str | None
+    request_id: UUID
+
+
+class AdminAuditEventsResponse(BaseResponse):
+    """Paginated administrator audit events."""
+
+    events: list[AdminAuditEvent]
+    total: int = Field(ge=0)
+
+
 class BlacklistedUserInfo(BaseModel):
     """An active blacklist entry and its matching account, if it still exists."""
 
@@ -182,6 +208,11 @@ class MarketListingInfo(BaseModel):
     price: int
     category: Literal["buy", "sell"]
     created_at: datetime
+    owner_username: str | None = None
+    owner_name: str | None = None
+    owner_contact: str | None = None
+    owner_email: str | None = None
+    owner_address: str | None = None
 
 
 class AdminMarketListingInfo(MarketListingInfo):

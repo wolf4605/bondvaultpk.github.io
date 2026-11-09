@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/app_config.dart';
 import '../../config/app_theme.dart';
+import '../../config/responsive.dart';
 import '../../widgets/widgets.dart';
 
 class AdminUsersScreen extends StatefulWidget {
@@ -242,76 +243,166 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   void _showBlacklistDialog(BuildContext context, String userId) {
     String selectedPeriod = 'permanent ban';
+    final periods = [
+      '1 day',
+      '3 day',
+      '7 day',
+      '15 day',
+      '1 month',
+      'permanent ban',
+    ];
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Ban User'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Select time period for ban:'),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedPeriod,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                items:
-                    [
-                          '1 day',
-                          '3 day',
-                          '7 day',
-                          '15 day',
-                          '1 month',
-                          'permanent ban',
-                        ]
-                        .map(
-                          (period) => DropdownMenuItem(
-                            value: period,
-                            child: Text(period),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setStateDialog(() => selectedPeriod = val);
-                  }
-                },
-              ),
-            ],
+        builder: (context, setStateDialog) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Responsive.maxContentWidth(context),
             ),
-            AppButton(
-              label: 'Confirm Ban',
-              variant: AppButtonVariant.secondary,
-              fullWidth: false,
-              isLoading: _loadingUserId == userId && _loadingAction == 'ban',
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                DateTime? durationUntil;
-                final now = DateTime.now();
-                if (selectedPeriod == '1 day') {
-                  durationUntil = now.add(const Duration(days: 1));
-                } else if (selectedPeriod == '3 day') {
-                  durationUntil = now.add(const Duration(days: 3));
-                } else if (selectedPeriod == '7 day') {
-                  durationUntil = now.add(const Duration(days: 7));
-                } else if (selectedPeriod == '15 day') {
-                  durationUntil = now.add(const Duration(days: 15));
-                } else if (selectedPeriod == '1 month') {
-                  durationUntil = now.add(const Duration(days: 30));
-                } else {
-                  durationUntil = null;
-                }
-                _blacklistUser(userId, durationUntil);
-              },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Banner
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF991B1B), Color(0xFF7F1D1D)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.block,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Suspend User Account',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Select suspension duration for this account',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFFECACA),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(dialogContext),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Body
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SUSPENSION DURATION',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: periods.map((period) {
+                          final isSelected = selectedPeriod == period;
+                          return ChoiceChip(
+                            label: Text(
+                              period.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.onSurface,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: AppColors.error,
+                            backgroundColor: AppColors.surfaceContainerLow,
+                            onSelected: (sel) {
+                              if (sel) {
+                                setStateDialog(() => selectedPeriod = period);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                      AppButton(
+                        label: 'Confirm Account Suspension',
+                        variant: AppButtonVariant.danger,
+                        isLoading:
+                            _loadingUserId == userId && _loadingAction == 'ban',
+                        icon: const Icon(Icons.lock_outline, size: 18),
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          DateTime? durationUntil;
+                          final now = DateTime.now();
+                          if (selectedPeriod == '1 day') {
+                            durationUntil = now.add(const Duration(days: 1));
+                          } else if (selectedPeriod == '3 day') {
+                            durationUntil = now.add(const Duration(days: 3));
+                          } else if (selectedPeriod == '7 day') {
+                            durationUntil = now.add(const Duration(days: 7));
+                          } else if (selectedPeriod == '15 day') {
+                            durationUntil = now.add(const Duration(days: 15));
+                          } else if (selectedPeriod == '1 month') {
+                            durationUntil = now.add(const Duration(days: 30));
+                          } else {
+                            durationUntil = null;
+                          }
+                          _blacklistUser(userId, durationUntil);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

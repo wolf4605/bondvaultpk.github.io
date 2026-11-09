@@ -21,6 +21,7 @@ import traceback
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from time import perf_counter
+from uuid import uuid4
 
 import asyncpg
 from fastapi import FastAPI, Request, status
@@ -43,6 +44,7 @@ from src.routers.drawlists import (
 from src.routers.system import router as system_router
 from src.routers.user import router as user_router
 from src.routers.user_auth import router as user_auth_router
+from src.services.admin_audit import record_admin_audit_event
 from src.services.email_service import EmailDeliveryError
 from src.services.lifespan import lifespan
 from src.utilities.auth_tokens import ACCESS_TOKEN_EXPIRES_HEADER, ACCESS_TOKEN_HEADER
@@ -184,8 +186,40 @@ async def audit_admin_actions(
     except Exception as error:
         response = await handle_app_error(request, error)
 
-    if request.url.path.startswith("/admins/"):
-        payload = getattr(request.state, "admin_payload", None)
+    payload = getattr(request.state, "admin_payload", None)
+    is_admin_api_request = (
+        request.url.path == "/admins"
+        or request.url.path.startswith("/admins/")
+        or payload is not None
+    )
+    if is_admin_api_request:
+        route_object = request.scope.get("route")
+        route_path = getattr(route_object, "path", request.url.path)
+        route_summary = (
+            getattr(route_object, "summary", None)
+            or getattr(route_object, "name", None)
+            or route_path
+        )
+        path_parameters = request.path_params
+        subject_id = next(
+            (
+                str(value)
+                for name, value in path_parameters.items()
+                if name.endswith("_id") or name in {"draw_date", "denomination"}
+            ),
+            None,
+        )
+        subject = route_summary
+        if subject_id is not None:
+            subject = f"{route_summary} ({subject_id})"
+        duration_ms = round((perf_counter() - started_at) * 1000, 3)
+        request_id = uuid4()
+        client_ip = (
+            request.client.host
+            if request.client is not None
+            else None
+        )
+        user_agent = request.headers.get("user-agent")
         audit_logger = logging.getLogger("application.audit")
         audit_logger.info(
             "administrator API request",
@@ -194,10 +228,45 @@ async def audit_admin_actions(
                 "method": request.method,
                 "path": request.url.path,
                 "status_code": response.status_code,
-                "duration_ms": round((perf_counter() - started_at) * 1000, 3),
+                "duration_ms": duration_ms,
                 "admin_id": str(payload.id) if payload is not None else None,
+                "request_id": str(request_id),
             },
         )
+        try:
+            await record_admin_audit_event(
+                actor_admin_id=payload.id if payload is not None else None,
+                action=f"{request.method} {route_path}",
+                subject=subject,
+                subject_id=subject_id,
+                description=(
+                    f"{route_summary}; request completed with HTTP "
+                    f"{response.status_code} in {duration_ms} ms."
+                ),
+                http_method=request.method,
+                route=route_path,
+                status_code=response.status_code,
+                duration_ms=duration_ms,
+                client_ip=client_ip,
+                user_agent=user_agent,
+                request_id=request_id,
+            )
+        except (
+            asyncpg.PostgresError,
+            ConnectionError,
+            RuntimeError,
+            ValueError,
+            TimeoutError,
+        ):
+            audit_logger.exception(
+                "administrator API request could not be persisted to the audit table",
+                extra={
+                    "event": "admin.audit.persistence_failed",
+                    "route": route_path,
+                    "request_id": str(request_id),
+                    "admin_id": str(payload.id) if payload is not None else None,
+                },
+            )
     return response
 
 

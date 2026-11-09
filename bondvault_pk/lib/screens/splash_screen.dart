@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../utils/permission_utils.dart';
 import '../widgets/widgets.dart';
 import 'login_screen.dart';
 import 'pin_unlock_screen.dart';
@@ -28,6 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    PermissionUtils.requestAppPermissions();
     _checkSystemHealth();
   }
 

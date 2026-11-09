@@ -18,7 +18,10 @@
 from .app_settings import AppSettings
 from .auth_configs import ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES, JWT_ALGORITHM
 from .db_configs import AdminDBConfigs, DBConfigs
-from .prize_bonds import PRIZE_POSITION_NAMES, PrizeBondDenominations
+from .prize_bonds import (
+    PRIZE_POSITION_NAMES,
+    PrizeBondDenominations,
+)
 from .scraper_configs import ScraperConfigs
 
 MAX_LOG_FILES: int = 3

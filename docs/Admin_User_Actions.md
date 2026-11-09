@@ -22,10 +22,38 @@ The invited administrator sets a password of at least 12 characters with
 `POST /admins/auth/activate`, providing the email, token, and new password.
 Superusers can rotate and resend a pending invitation with
 `POST /admins/{admin_id}/invite`.
+They can delete another administrator with `DELETE /admins/{admin_id}`.
+Administrators cannot delete their own account, and the final superuser account
+cannot be deleted. Deleting an administrator also removes any pending
+invitation, revokes their active sessions, and emails an account-deletion notice.
+Superusers can set the password of a non-superuser administrator with
+`PUT /admins/{admin_id}/password`, sending
+`{"new_password":"a-strong-password"}`. Passwords must be 12–256 characters.
+The new password is emailed to that administrator, and their active sessions
+are revoked. This endpoint cannot change a superuser's password.
 
 The `admin_invites` table is created by database initialization. Apply
 `src/database/schema/12-Admin-Invites.sql` manually if initialization is not
 enabled for the deployment.
+
+## Administrator audit log
+
+Administrator API requests are recorded in the `admin_audit` table, including
+the acting administrator when authenticated, action and route, subject and
+subject ID when present, result status, duration, request ID, client IP,
+user-agent, and event timestamp. Requests to `/admins` are recorded even when
+authentication fails; authenticated administrator requests on other API
+prefixes are also recorded. Request bodies, passwords, tokens, and other
+credentials are not stored.
+
+Any authenticated administrator can browse the newest audit events with
+`GET /admins/audit?limit=100&offset=0`. The limit can be between 1 and 500.
+Deleting an administrator preserves audit history and changes their actor ID
+to `NULL`.
+
+The application creates `admin_audit` at startup. Deployments whose database
+role cannot create tables should apply `src/database/schema/15-Admin-Audit.sql`
+with a database administrator before starting the application.
 
 ## User moderation
 
@@ -60,3 +88,9 @@ Email is sent after the database action has committed. If SMTP delivery fails,
 the response indicates that the account action already took effect. The
 failure is logged for an operator to retry notification delivery using the
 account email and action details.
+
+Administrator deletion and password changes require an authenticated
+superuser. If email delivery or active-session revocation fails after either
+action, the endpoint returns a service error and states that the action has
+already taken effect. The administrator password-change email contains the
+new password; it is never included in the API response or application logs.

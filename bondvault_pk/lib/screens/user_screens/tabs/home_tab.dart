@@ -4,6 +4,8 @@ import '../../../config/app_theme.dart';
 import '../../../config/responsive.dart';
 import '../../../utils/api_service.dart';
 import '../../../widgets/widgets.dart';
+import '../draw_detail_screen.dart';
+import '../draw_lists_screen.dart';
 
 class HomeTab extends StatefulWidget {
   final String fullName;
@@ -34,24 +36,40 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   Map<String, dynamic>? _nextDraw;
   bool _isLoadingDraw = true;
+  List<dynamic> _gazetteDraws = [];
+  bool _isLoadingGazette = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchNextDraw();
+    _fetchHomeDrawData();
   }
 
-  Future<void> _fetchNextDraw() async {
+  Future<void> _fetchHomeDrawData() async {
     try {
-      final list = await ApiService.fetchDrawSchedule(widget.accessToken);
-      if (list != null && list.isNotEmpty && mounted) {
+      final scheduleList = await ApiService.fetchDrawSchedule(
+        widget.accessToken,
+      );
+      if (scheduleList != null && scheduleList.isNotEmpty && mounted) {
         setState(() {
-          _nextDraw = Map<String, dynamic>.from(list.first);
+          _nextDraw = Map<String, dynamic>.from(scheduleList.first);
+        });
+      }
+
+      final gazettes = await ApiService.fetchUserDrawlists(widget.accessToken);
+      if (gazettes != null && mounted) {
+        setState(() {
+          _gazetteDraws = gazettes;
         });
       }
     } catch (_) {
     } finally {
-      if (mounted) setState(() => _isLoadingDraw = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingDraw = false;
+          _isLoadingGazette = false;
+        });
+      }
     }
   }
 
@@ -266,12 +284,20 @@ class _HomeTabState extends State<HomeTab> {
               ),
               _buildExploreCard(
                 context,
-                'Draws',
-                'Latest draw results',
+                'Draw Results',
+                'Official gazette results',
                 Icons.military_tech_outlined,
                 AppColors.warning,
                 widget.isVerified,
-                () => widget.onNavigate(4),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          DrawListsScreen(accessToken: widget.accessToken),
+                    ),
+                  );
+                },
               ),
               _buildExploreCard(
                 context,
@@ -310,12 +336,13 @@ class _HomeTabState extends State<HomeTab> {
           else if (_nextDraw != null) ...[
             Builder(
               builder: (context) {
-                final rawLocation = (_nextDraw!['location'] ??
-                        _nextDraw!['city'] ??
-                        _nextDraw!['draw_location'] ??
-                        '')
-                    .toString()
-                    .trim();
+                final rawLocation =
+                    (_nextDraw!['location'] ??
+                            _nextDraw!['city'] ??
+                            _nextDraw!['draw_location'] ??
+                            '')
+                        .toString()
+                        .trim();
                 final drawLocation = rawLocation.isNotEmpty
                     ? rawLocation
                     : 'SBP';
@@ -450,6 +477,77 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                 ],
               ),
+            ),
+
+          // Official Gazette Draw Lists Section on Home Screen
+          const SizedBox(height: 24),
+          AppSectionHeader(
+            title: 'Official Gazette Draw Lists',
+            tagline: 'LATEST RESULTS',
+            action: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        DrawListsScreen(accessToken: widget.accessToken),
+                  ),
+                );
+              },
+              child: const Text(
+                'View All →',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingGazette)
+            const AppLoadingIndicator(message: 'Fetching gazette results...')
+          else if (_gazetteDraws.isEmpty)
+            const AppEmptyState(
+              icon: Icons.description_outlined,
+              title: 'No Draw Lists Available',
+              message:
+                  'No official gazette draw lists have been published yet.',
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _gazetteDraws.length > 3 ? 3 : _gazetteDraws.length,
+              itemBuilder: (context, index) {
+                final draw = _gazetteDraws[index];
+                final drawId = draw['draw_id']?.toString() ?? '';
+                final denomination = draw['denomination'] as int? ?? 0;
+                final drawDate = draw['draw_date']?.toString() ?? 'N/A';
+                final winnerCount = draw['winner_count'] as int? ?? 0;
+
+                return VibrantDrawCard(
+                  drawId: drawId,
+                  denomination: denomination,
+                  drawDate: drawDate,
+                  winnerCount: winnerCount,
+                  accessToken: widget.accessToken,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DrawDetailScreen(
+                          drawId: drawId,
+                          denomination: denomination,
+                          drawDate: drawDate,
+                          winnerCount: winnerCount,
+                          accessToken: widget.accessToken,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
         ],
       ),

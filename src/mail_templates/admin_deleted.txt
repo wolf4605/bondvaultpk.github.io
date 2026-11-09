@@ -1,0 +1,8 @@
+Subject: Your BondVault PK administrator account was deleted
+
+Hello $username,
+
+Your BondVault PK administrator account has been deleted by a superuser.
+You can no longer sign in to this account.
+
+If you believe this was a mistake, contact BondVault PK support.

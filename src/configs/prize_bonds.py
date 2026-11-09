@@ -24,6 +24,15 @@ PRIZE_POSITION_NAMES = {
     3: "3rd Prize",
 }
 
+EXPECTED_PRIZE_NUMBER_COUNTS = {
+    100: (1, 3),
+    200: (1, 5),
+    750: (1, 3),
+    1500: (1, 3),
+    25000: (2, 5),
+    40000: (1, 3),
+}
+
 
 class PrizeBondDenominations(IntEnum):
     """Denominations for the Pakistani Prize Bonds."""

@@ -25,6 +25,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from redis.exceptions import RedisError
 from starlette.exceptions import HTTPException
 
 from .. import models, payloads, responses
@@ -39,8 +40,12 @@ from ..utilities.auth_dependencies import (
 from ..utilities.auth_tokens import create_access_token, token_lifetime
 from ..services.email_service import (
     ADMIN_INVITE_EXPIRY_HOURS,
+    EmailDeliveryError,
+    send_admin_deleted_email,
     send_admin_invitation_email,
+    send_admin_password_changed_email,
 )
+from ..payloads.basic import AdminSetAdminPassword
 
 logger = logging.getLogger("application.audit")
 router = APIRouter(prefix="/admins",
@@ -197,6 +202,227 @@ async def resend_admin_invitation(
     return responses.BaseResponse(message="Administrator invitation sent.")
 
 
+@router.delete(
+    "/{admin_id}",
+    response_model=responses.BaseResponse,
+    summary="Delete an administrator account",
+)
+async def delete_admin(
+    admin_id: UUID,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+    request: Request,
+) -> responses.BaseResponse:
+    """Allow a superuser to delete another admin and revoke their sessions."""
+    if not admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a superuser can delete administrator accounts.",
+        )
+    if admin_id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You cannot delete your own administrator account.",
+        )
+
+    async with DB.transaction() as connection:
+        superusers = await connection.fetch(
+            """
+                SELECT "id"
+                FROM "admins"
+                WHERE "is_superuser" = TRUE
+                ORDER BY "id"
+                FOR UPDATE
+            """
+        )
+        target = await connection.fetchrow(
+            """
+                SELECT "id", "username", "email", "is_superuser"
+                FROM "admins"
+                WHERE "id" = $1
+                FOR UPDATE
+            """,
+            admin_id,
+        )
+        if target is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Administrator not found.",
+            )
+
+        if target["is_superuser"] and len(superusers) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="The last superuser account cannot be deleted.",
+            )
+
+        deleted_admin_id = await connection.fetchval(
+            """
+            DELETE FROM "admins"
+            WHERE "id" = $1
+            RETURNING "id"
+            """,
+            admin_id,
+        )
+        if deleted_admin_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Administrator not found.",
+            )
+
+    logger.warning(
+        "administrator account deleted",
+        extra={
+            "event": "admin.deleted",
+            "subject_id": str(admin_id),
+            "actor_id": str(admin.id),
+        },
+    )
+    failures: list[str] = []
+    try:
+        await revoke_sessions(
+            admin_id,
+            "admin",
+            request.app.state.redis_wrapper,
+        )
+    except (ConnectionError, RedisError, OSError, TimeoutError) as error:
+        logger.exception(
+            "administrator deleted but session revocation failed",
+            extra={
+                "event": "admin.session.revocation_failed",
+                "subject_id": str(admin_id),
+                "actor_id": str(admin.id),
+            },
+        )
+        failures.append("active sessions could not be revoked")
+
+    try:
+        await send_admin_deleted_email(target["email"], target["username"])
+    except EmailDeliveryError as error:
+        logger.exception(
+            "administrator deleted but notification email failed",
+            extra={
+                "event": "admin.deleted.email_failed",
+                "subject_id": str(admin_id),
+                "actor_id": str(admin.id),
+            },
+        )
+        failures.append("the notification email could not be sent")
+
+    if failures:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                f"The administrator was deleted, but {' and '.join(failures)}. "
+                "The deletion has already taken effect."
+            ),
+        )
+
+    return responses.BaseResponse(
+        message="Administrator deleted, notified, and active sessions revoked."
+    )
+
+
+@router.put(
+    "/{admin_id}/password",
+    response_model=responses.BaseResponse,
+    summary="Set a non-superuser administrator's password",
+)
+async def set_admin_password(
+    admin_id: UUID,
+    payload: AdminSetAdminPassword,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+    request: Request,
+) -> responses.BaseResponse:
+    """Allow a superuser to set a non-superuser admin's password."""
+    if not admin.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a superuser can change another administrator's password.",
+        )
+
+    new_password = payload.new_password.get_secret_value()
+    async with DB.transaction() as connection:
+        target = await connection.fetchrow(
+            """
+            SELECT "id", "username", "email"
+            FROM "admins"
+            WHERE "id" = $1 AND "is_superuser" = FALSE
+            FOR UPDATE
+            """,
+            admin_id,
+        )
+        if target is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Non-superuser administrator not found.",
+            )
+        await connection.execute(
+            """
+            UPDATE "admins"
+            SET "password_hash" = $1
+            WHERE "id" = $2
+            """,
+            hash_password(new_password),
+            admin_id,
+        )
+
+    logger.warning(
+        "administrator password changed by superuser",
+        extra={
+            "event": "admin.password.superuser_changed",
+            "subject_id": str(admin_id),
+            "actor_id": str(admin.id),
+        },
+    )
+    failures: list[str] = []
+    try:
+        await revoke_sessions(
+            admin_id,
+            "admin",
+            request.app.state.redis_wrapper,
+        )
+    except (ConnectionError, RedisError, OSError, TimeoutError):
+        logger.exception(
+            "administrator password changed but session revocation failed",
+            extra={
+                "event": "admin.password.session_revocation_failed",
+                "subject_id": str(admin_id),
+                "actor_id": str(admin.id),
+            },
+        )
+        failures.append("active sessions could not be revoked")
+
+    try:
+        await send_admin_password_changed_email(
+            target["email"],
+            target["username"],
+            new_password,
+        )
+    except EmailDeliveryError:
+        logger.exception(
+            "administrator password changed but notification email failed",
+            extra={
+                "event": "admin.password.email_failed",
+                "subject_id": str(admin_id),
+                "actor_id": str(admin.id),
+            },
+        )
+        failures.append("the notification email could not be sent")
+
+    if failures:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                f"The administrator's password was changed, but "
+                f"{' and '.join(failures)}. The password change has already "
+                "taken effect."
+            ),
+        )
+    return responses.BaseResponse(
+        message="Administrator password changed, emailed, and sessions revoked."
+    )
+
+
 @router.post(
     "/auth/activate",
     response_model=responses.BaseResponse,
@@ -312,6 +538,7 @@ async def login_admin(
         )
 
     token = create_access_token(admin.id, "admin", session_id)
+    request.state.admin_payload = admin
     logger.info(
         "administrator authenticated",
         extra={

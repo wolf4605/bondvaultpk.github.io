@@ -26,9 +26,11 @@ from pydantic import (
     Field,
     SecretStr,
     field_validator,
+    model_validator,
 )
 
 from ..configs import PrizeBondDenominations
+from ..configs.prize_bonds import EXPECTED_PRIZE_NUMBER_COUNTS
 from ..utilities.auth import hash_password
 
 
@@ -73,6 +75,65 @@ class UpcomingDrawCreate(BaseModel):
     draw_date: date
 
 
+class DrawListUploadRequest(BaseModel):
+    """Winning bond numbers submitted for an administrator draw-list import."""
+
+    denomination: PrizeBondDenominations
+    draw_date: date
+    first_prize_numbers: list[str] = Field(min_length=1, max_length=5000)
+    second_prize_numbers: list[str] = Field(min_length=1, max_length=5000)
+    third_prize_numbers: list[str] = Field(min_length=1, max_length=5000)
+
+    @field_validator(
+        "first_prize_numbers",
+        "second_prize_numbers",
+        "third_prize_numbers",
+    )
+    @classmethod
+    def normalize_bond_numbers(cls, numbers: list[str]) -> list[str]:
+        """Validate one-to-six digit winning numbers and store six-digit forms."""
+        normalized_numbers = []
+        for number in numbers:
+            if (
+                not number.isascii()
+                or not number.isdigit()
+                or not 1 <= int(number) <= 999999
+            ):
+                raise ValueError(
+                    "Prize bond numbers must be between 000001 and 999999."
+                )
+            normalized_numbers.append(number.zfill(6))
+        return normalized_numbers
+
+    @model_validator(mode="after")
+    def validate_prize_winners(self) -> "DrawListUploadRequest":
+        """Validate denomination-specific winner counts and unique numbers."""
+        expected_first, expected_second = EXPECTED_PRIZE_NUMBER_COUNTS[
+            int(self.denomination)
+        ]
+        if len(self.first_prize_numbers) != expected_first:
+            raise ValueError(
+                f"Expected {expected_first} first-prize bond number(s), "
+                f"but received {len(self.first_prize_numbers)}."
+            )
+        if len(self.second_prize_numbers) != expected_second:
+            raise ValueError(
+                f"Expected {expected_second} second-prize bond number(s), "
+                f"but received {len(self.second_prize_numbers)}."
+            )
+
+        all_numbers = (
+            self.first_prize_numbers
+            + self.second_prize_numbers
+            + self.third_prize_numbers
+        )
+        if len(all_numbers) != len(set(all_numbers)):
+            raise ValueError(
+                "A bond number cannot appear more than once in a draw list."
+            )
+        return self
+
+
 class BondAddPayload(BaseModel):
     """Payload to add/delete bond(s) to a user."""
     bonds: str | list[str] = Field(default=..., description="The prize bond number or a list of prize bond_numbers", examples=["000001", "[\"000001\", \"000002\", \"000003\"]"])
@@ -100,6 +161,14 @@ class ChangePassword(BaseModel):
     """Payload for changing a users password."""
     old_password: str = Field(default=..., description="The current password of the user.")
     new_password: str = Field(default=..., description="The new user password that is to be set. **Should not be same as the current password.")
+
+
+class AdminSetAdminPassword(BaseModel):
+    """Set a non-superuser administrator's password through an admin action."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    new_password: SecretStr = Field(min_length=12, max_length=256)
 
 
 class AdminRegister(BaseModel):

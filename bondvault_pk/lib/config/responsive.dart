@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Relative units and responsive scaling utility for BondVault PK.
+/// Relative units, responsive breakpoints, and layout builder utilities for BondVault PK.
 class Responsive {
   static double width(BuildContext context) => MediaQuery.sizeOf(context).width;
   static double height(BuildContext context) =>
@@ -10,6 +10,11 @@ class Responsive {
   static bool isTablet(BuildContext context) =>
       width(context) >= 600 && width(context) < 1024;
   static bool isDesktop(BuildContext context) => width(context) >= 1024;
+
+  static Orientation orientation(BuildContext context) =>
+      MediaQuery.orientationOf(context);
+  static bool isLandscape(BuildContext context) =>
+      orientation(context) == Orientation.landscape;
 
   /// Scale size relative to reference screen width (375dp base) with clamping
   static double w(
@@ -44,7 +49,7 @@ class Responsive {
     return size * scale;
   }
 
-  /// Responsive grid columns based on device width
+  /// Responsive grid columns based on device width and orientation
   static int gridColumns(
     BuildContext context, {
     int mobile = 2,
@@ -53,6 +58,7 @@ class Responsive {
   }) {
     if (isDesktop(context)) return desktop;
     if (isTablet(context)) return tablet;
+    if (isLandscape(context)) return 3;
     return mobile;
   }
 
@@ -61,6 +67,35 @@ class Responsive {
     if (isDesktop(context)) return 900;
     if (isTablet(context)) return 680;
     return double.infinity;
+  }
+}
+
+/// A responsive widget switcher that renders mobile, tablet, or desktop layouts based on parent constraints.
+class ResponsiveLayout extends StatelessWidget {
+  final Widget mobile;
+  final Widget? tablet;
+  final Widget? desktop;
+
+  const ResponsiveLayout({
+    super.key,
+    required this.mobile,
+    this.tablet,
+    this.desktop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 1024) {
+          return desktop ?? tablet ?? mobile;
+        } else if (constraints.maxWidth >= 600) {
+          return tablet ?? mobile;
+        } else {
+          return mobile;
+        }
+      },
+    );
   }
 }
 

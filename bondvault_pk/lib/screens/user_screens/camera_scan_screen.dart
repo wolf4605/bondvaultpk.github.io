@@ -6,7 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
+import '../../config/app_theme.dart';
+import '../../config/responsive.dart';
 import '../../utils/api_service.dart';
+import '../../utils/app_utils.dart';
+import '../../widgets/widgets.dart';
 import 'bond_ocr_parser.dart';
 
 class _ScannedBond {
@@ -31,8 +35,6 @@ class CameraScanScreen extends StatefulWidget {
 }
 
 class _CameraScanScreenState extends State<CameraScanScreen> {
-  static const _green = Color(0xFF012F21);
-
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   final List<_ScannedBond> _scannedBonds = [];
@@ -76,7 +78,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       );
       final controller = CameraController(
         camera,
-        ResolutionPreset.medium,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: defaultTargetPlatform == TargetPlatform.android
             ? ImageFormatGroup.nv21
@@ -104,7 +106,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     }
     setState(() {
       _isProcessingFrame = true;
-      _scanStatus = 'Capturing and analyzing image...';
+      _scanStatus = 'Analyzing prize bond text & serials...';
     });
 
     try {
@@ -126,14 +128,12 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
       if (numbers.isEmpty) {
         setState(() {
-          _scanStatus = 'No valid bond number found. Try aligning clearly.';
+          _scanStatus = 'No 6-digit serial found. Please align clearly.';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No bond numbers detected. Please align the 6-digit serial inside the frame.',
-            ),
-          ),
+        showAppToast(
+          context,
+          'No bond numbers detected. Align the 6-digit serial inside the frame.',
+          type: AppNotificationType.warning,
         );
         return;
       }
@@ -157,19 +157,25 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       });
 
       if (addedCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully added $addedCount bond(s)!')),
+        showAppToast(
+          context,
+          'Added $addedCount bond(s) to scan list!',
+          type: AppNotificationType.success,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Detected bonds were already added.')),
+        showAppToast(
+          context,
+          'Detected bonds were already added.',
+          type: AppNotificationType.info,
         );
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _scanStatus = 'Capture failed: $error');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not process captured image: $error')),
+        setState(() => _scanStatus = 'Capture error: $error');
+        showAppToast(
+          context,
+          'Could not process captured image: $error',
+          type: AppNotificationType.error,
         );
       }
     } finally {
@@ -214,16 +220,18 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Correct scanned bond'),
+          title: const Text('Correct Scanned Bond'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: numberController,
                 keyboardType: TextInputType.number,
+                maxLength: 6,
                 decoration: InputDecoration(
-                  labelText: 'Six-digit serial number',
+                  labelText: 'Six-Digit Serial Number',
                   errorText: numberError,
+                  prefixIcon: const Icon(Icons.numbers),
                 ),
                 onChanged: (_) => setDialogState(() => numberError = null),
               ),
@@ -233,13 +241,14 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                 initialValue: denomination,
                 decoration: const InputDecoration(
                   labelText: 'Denomination',
+                  prefixIcon: Icon(Icons.currency_exchange),
                   border: OutlineInputBorder(),
                 ),
                 items: BondOcrParser.denominations
                     .map(
                       (value) => DropdownMenuItem(
                         value: value,
-                        child: Text('Rs. $value'),
+                        child: Text('Rs. ${formatNumber(value)}'),
                       ),
                     )
                     .toList(),
@@ -256,9 +265,11 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            AppButton(
+              label: 'Save Changes',
+              fullWidth: false,
               onPressed: () {
-                final number = numberController.text.trim();
+                final number = numberController.text.trim().padLeft(6, '0');
                 if (!RegExp(r'^\d{6}$').hasMatch(number) ||
                     number == '000000') {
                   setDialogState(
@@ -271,7 +282,6 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                   _ScannedBond(number, denomination),
                 );
               },
-              child: const Text('Save'),
             ),
           ],
         ),
@@ -289,8 +299,10 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
           entry.value.denomination == correctedBond.denomination,
     );
     if (alreadyAdded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('That bond is already in the scan list.')),
+      showAppToast(
+        context,
+        'That bond is already in the scan list.',
+        type: AppNotificationType.warning,
       );
       return;
     }
@@ -303,21 +315,28 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   }
 
   void _addManualBond() {
-    final numbers = _manualEntryController.text
+    final rawText = _manualEntryController.text.trim();
+    if (rawText.isEmpty) {
+      showAppToast(
+        context,
+        'Please enter a bond number.',
+        type: AppNotificationType.warning,
+      );
+      return;
+    }
+    final numbers = rawText
         .split(',')
-        .map((number) => number.trim())
+        .map((number) => number.trim().padLeft(6, '0'))
         .toList();
     if (numbers.isEmpty ||
         numbers.any(
           (number) =>
               !RegExp(r'^\d{6}$').hasMatch(number) || number == '000000',
         )) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Enter valid six-digit bond numbers, separated by commas.',
-          ),
-        ),
+      showAppToast(
+        context,
+        'Enter valid six-digit bond numbers separated by commas.',
+        type: AppNotificationType.warning,
       );
       return;
     }
@@ -332,8 +351,11 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
   Future<void> _submitScannedBonds() async {
     if (_scannedBonds.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No bonds scanned yet.')));
+      showAppToast(
+        context,
+        'No bonds scanned yet.',
+        type: AppNotificationType.warning,
+      );
       return;
     }
 
@@ -357,14 +379,12 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         if (response.statusCode != 200 && response.statusCode != 201) {
           if (!mounted) return;
           if (savedCount > 0) widget.onBondsAdded();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                savedCount > 0
-                    ? 'Saved $savedCount bonds. Rs. $denomination failed: ${_responseDetail(response.body)}'
-                    : 'Rs. $denomination failed: ${_responseDetail(response.body)}',
-              ),
-            ),
+          showAppNotificationSheet(
+            context: context,
+            title: 'Partial Registration Error',
+            message:
+                'Saved $savedCount bonds. Rs. $denomination failed: ${_responseDetail(response.body)}',
+            type: AppNotificationType.error,
           );
           return;
         }
@@ -381,14 +401,21 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
       if (!mounted) return;
       widget.onBondsAdded();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Successfully added $savedCount bonds!')),
+      showAppNotificationSheet(
+        context: context,
+        title: 'Bonds Registered',
+        message:
+            'Successfully registered $savedCount prize bonds to portfolio!',
+        type: AppNotificationType.success,
+        onDismiss: () => Navigator.pop(context),
       );
-      Navigator.pop(context);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not submit scanned bonds: $error')),
+      showAppNotificationSheet(
+        context: context,
+        title: 'Submission Error',
+        message: 'Could not submit scanned bonds: $error',
+        type: AppNotificationType.error,
       );
       if (savedCount > 0) widget.onBondsAdded();
     } finally {
@@ -427,219 +454,271 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Scan Prize Bonds'),
-        backgroundColor: _green,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Prize Bond Scanner',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
       ),
-      body: Column(
-        children: [
-          _cameraPreview(),
-          if (_scanStatus.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                _scanStatus,
-                style: const TextStyle(
-                  color: Color(0xFF012F21),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
+      body: SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Responsive.maxContentWidth(context),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: DropdownButtonFormField<int>(
-              key: ValueKey(_selectedDenomination),
-              initialValue: _selectedDenomination,
-              decoration: const InputDecoration(
-                labelText: 'Detected denomination (tap to correct)',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: BondOcrParser.denominations
-                  .map(
-                    (value) => DropdownMenuItem(
-                      value: value,
-                      child: Text('Rs. $value'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedDenomination = value);
-                }
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _manualEntryController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Manual serial number(s)',
-                      hintText: '123456, 654321',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _addManualBond,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _green,
-                    foregroundColor: Colors.white,
+                // Camera Framing Box
+                _buildCameraPreview(),
+
+                if (_scanStatus.isNotEmpty)
+                  Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 15,
+                      vertical: 8,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF064E3B)
+                            : AppColors.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _scanStatus,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
-                  child: const Text('Add'),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Scanned Bonds (${_scannedBonds.length})',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                if (_scannedBonds.isNotEmpty)
-                  TextButton(
-                    onPressed: _clearAllBonds,
-                    child: const Text(
-                      'Clear all',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _scannedBonds.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Point the camera at the bond serial number.\nDetected bonds will appear here.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _scannedBonds.length,
-                    itemBuilder: (context, index) {
-                      final bond = _scannedBonds[index];
-                      return Card(
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: _green,
-                            child: Icon(
-                              Icons.confirmation_number,
-                              color: Colors.white,
-                            ),
-                          ),
-                          title: Text(
-                            bond.number,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text('Rs. ${bond.denomination}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: 'Correct bond',
-                                icon: const Icon(Icons.edit_outlined),
-                                onPressed: () => _editBond(index),
-                              ),
-                              IconButton(
-                                tooltip: 'Remove bond',
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () => _removeBond(index),
-                              ),
-                            ],
+
+                // Controls Section Card
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Denomination & Manual Add',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                            color: AppColors.primary,
                           ),
                         ),
-                      );
-                    },
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting || _scannedBonds.isEmpty
-                          ? null
-                          : _submitScannedBonds,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _green,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: _isSubmitting
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text('Save (${_scannedBonds.length})'),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<int>(
+                          key: ValueKey(_selectedDenomination),
+                          initialValue: _selectedDenomination,
+                          decoration: const InputDecoration(
+                            labelText: 'Selected Denomination',
+                            prefixIcon: Icon(Icons.currency_exchange),
+                          ),
+                          items: BondOcrParser.denominations
+                              .map(
+                                (value) => DropdownMenuItem(
+                                  value: value,
+                                  child: Text('Rs. ${formatNumber(value)}'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedDenomination = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: AppTextField(
+                                controller: _manualEntryController,
+                                keyboardType: TextInputType.number,
+                                labelText: 'Manual serial number(s)',
+                                hintText: '123456, 654321',
+                                prefixIcon: const Icon(Icons.pin),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            AppButton(
+                              label: '+ Add',
+                              fullWidth: false,
+                              height: 48,
+                              onPressed: _addManualBond,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: FloatingActionButton(
-                    onPressed: _isProcessingFrame
-                        ? null
-                        : _captureAndProcessImage,
-                    backgroundColor: Colors.teal.shade800,
-                    foregroundColor: Colors.white,
-                    tooltip: 'Capture Bond',
-                    elevation: 2,
-                    child: _isProcessingFrame
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+
+                // Scanned Bonds List Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Scanned Bonds List (${_scannedBonds.length})',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      if (_scannedBonds.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: _clearAllBonds,
+                          icon: const Icon(
+                            Icons.delete_sweep,
+                            color: Colors.red,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Clear All',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Scanned Items List
+                _scannedBonds.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: AppEmptyState(
+                          icon: Icons.document_scanner_outlined,
+                          title: 'No Scanned Bonds Yet',
+                          message: 'Align the camera at a prize bond serial number and tap the camera button to capture.',
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _scannedBonds.length,
+                        itemBuilder: (context, index) {
+                          final bond = _scannedBonds[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: AppCard(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.confirmation_number,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          bond.number,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.onSurface,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Rs. ${formatNumber(bond.denomination)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _editBond(index),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _removeBond(index),
+                                  ),
+                                ],
+                              ),
                             ),
-                          )
-                        : const Icon(Icons.camera_alt),
+                          );
+                        },
+                      ),
+                const SizedBox(height: 20),
+
+                // Submit Action Bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: AppButton(
+                    label: 'Register Scanned Bonds (${_scannedBonds.length})',
+                    isLoading: _isSubmitting,
+                    icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                    onPressed: _isSubmitting || _scannedBonds.isEmpty
+                        ? null
+                        : _submitScannedBonds,
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _cameraPreview() {
+  Widget _buildCameraPreview() {
     if (_cameraError != null) {
       return Container(
-        height: 320,
-        width: double.infinity,
-        color: Colors.black,
+        height: 260,
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(20),
+        ),
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -655,19 +734,98 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
     if (!_isCameraInitialized || _controller == null) {
       return Container(
-        height: 320,
-        width: double.infinity,
-        color: Colors.black,
+        height: 260,
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(20),
+        ),
         child: const Center(
-          child: CircularProgressIndicator(color: Colors.teal),
+          child: CircularProgressIndicator(color: AppColors.secondary),
         ),
       );
     }
 
-    return SizedBox(
-      width: double.infinity,
-      height: 320,
-      child: CameraPreview(_controller!),
+    return Container(
+      margin: const EdgeInsets.all(16),
+      height: 260,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CameraPreview(_controller!),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.25),
+              ),
+              child: Center(
+                child: Container(
+                  width: 280,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.secondaryContainer,
+                      width: 3,
+                    ),
+                  ),
+                  alignment: Alignment.topCenter,
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'ALIGN SERIAL NUMBER HERE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton(
+                heroTag: 'camera_capture_btn',
+                onPressed: _isProcessingFrame ? null : _captureAndProcessImage,
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                child: _isProcessingFrame
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.camera_alt),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -4,8 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_theme.dart';
 import '../../utils/api_service.dart';
 import '../../utils/app_utils.dart';
+import '../../utils/permission_utils.dart';
 import '../../widgets/widgets.dart';
 import '../login_screen.dart';
+import 'draw_lists_screen.dart';
 import 'tabs/draw_schedules_tab.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/marketplace_tab.dart';
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    PermissionUtils.requestAppPermissions();
     if (widget.userInfo['is_verified'] == true) {
       _fetchPortfolioData();
     } else {
@@ -139,7 +142,11 @@ class _HomeScreenState extends State<HomeScreen> {
         accessToken: widget.accessToken,
         onPortfolioUpdated: _fetchPortfolioData,
       ),
-      MarketplaceTab(isVerified: isVerified),
+      MarketplaceTab(
+        isVerified: isVerified,
+        accessToken: widget.accessToken,
+        userId: widget.userInfo['id']?.toString() ?? '',
+      ),
       DrawSchedulesTab(accessToken: widget.accessToken),
       SettingsTab(
         email: email,
@@ -430,11 +437,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildDrawerItem(
                     icon: Icons.military_tech_outlined,
-                    title: 'Draw Results',
+                    title: 'Gazette Draw Results',
                     isSelected: false,
                     onTap: () {
                       Navigator.pop(context);
-                      handleTabChange(4);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              DrawListsScreen(accessToken: widget.accessToken),
+                        ),
+                      );
                     },
                   ),
                   _buildDrawerItem(

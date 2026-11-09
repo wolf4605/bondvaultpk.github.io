@@ -3,6 +3,7 @@
 from datetime import date
 from typing import Final
 
+from ..configs.prize_bonds import EXPECTED_PRIZE_NUMBER_COUNTS
 from ..database import DB, Database
 from ..logging import get_logger
 from ..utilities.scrapper.models import PrizeBondTextResult
@@ -20,14 +21,6 @@ PRIZE_AMOUNTS: Final[dict[int, tuple[int, int, int]]] = {
     1500: (3_000_000, 1_000_000, 18_500),
     25000: (30_000_000, 10_000_000, 300_000),
     40000: (75_000_000, 25_000_000, 500_000),
-}
-EXPECTED_PRIZE_NUMBER_COUNTS: Final[dict[int, tuple[int, int]]] = {
-    100: (1, 3),
-    200: (1, 5),
-    750: (1, 3),
-    1500: (1, 3),
-    25000: (2, 5),
-    40000: (1, 3),
 }
 
 

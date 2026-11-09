@@ -20,4 +20,6 @@ class AppConfig {
   static const String bondsRangeEndpoint = '/bonds/range';
   static const String bondlistsExtEndpoint = '/bonds/bondlists_ext';
   static const String drawScheduleEndpoint = '/user/drawlists/schedule';
+  static const String userDrawlistsEndpoint = '/user/drawlists';
+  static const String marketListingsEndpoint = '/user/market/listings';
 }

@@ -79,6 +79,200 @@ class ApiService {
     return null;
   }
 
+  /// Fetch available user draw lists from GET /user/drawlists
+  static Future<List<dynamic>?> fetchUserDrawlists(String accessToken) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.userDrawlistsEndpoint}',
+      );
+      final res = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          return data;
+        } else if (data is Map<String, dynamic>) {
+          return data['drawlists'] ?? data['draws'] ?? data['results'] ?? [];
+        }
+      } else if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+    } catch (_) {
+      showServiceUnavailable();
+    }
+    return null;
+  }
+
+  /// Fetch winning bonds and prize details for a draw from GET /user/drawlists/{draw_id}/bonds
+  static Future<Map<String, dynamic>?> fetchUserDrawlistBonds({
+    required String accessToken,
+    required String drawId,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.userDrawlistsEndpoint}/$drawId/bonds',
+      );
+      final res = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      } else if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+    } catch (_) {
+      showServiceUnavailable();
+    }
+    return null;
+  }
+
+  /// Download PDF gazette for a draw from GET /user/drawlists/{draw_id}/pdf
+  static Future<http.Response?> downloadUserDrawlistPdf({
+    required String accessToken,
+    required String drawId,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.userDrawlistsEndpoint}/$drawId/pdf',
+      );
+      final res = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+      return res;
+    } catch (_) {
+      showServiceUnavailable();
+    }
+    return null;
+  }
+
+  /// Fetch all marketplace listings from GET /user/market/listings
+  static Future<List<dynamic>?> fetchMarketListings(String accessToken) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.marketListingsEndpoint}',
+      );
+      final res = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          return data;
+        } else if (data is Map<String, dynamic>) {
+          return data['listings'] ?? data['market'] ?? [];
+        }
+      } else if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+    } catch (_) {
+      showServiceUnavailable();
+    }
+    return null;
+  }
+
+  /// Create a new marketplace listing via POST /user/market/listings
+  static Future<http.Response> createMarketListing({
+    required String accessToken,
+    required String title,
+    required int price,
+    required String category, // 'buy' or 'sell'
+    String? description,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.marketListingsEndpoint}',
+      );
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'title': title,
+          'price': price,
+          'category': category,
+          'description': description,
+        }),
+      );
+      if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+      return res;
+    } catch (e) {
+      showServiceUnavailable();
+      rethrow;
+    }
+  }
+
+  /// Update an existing marketplace listing via PATCH /user/market/listings/{listing_id}
+  static Future<http.Response> updateMarketListing({
+    required String accessToken,
+    required String listingId,
+    String? title,
+    int? price,
+    String? category,
+    String? description,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.marketListingsEndpoint}/$listingId',
+      );
+      final payload = <String, dynamic>{};
+      if (title != null) payload['title'] = title;
+      if (price != null) payload['price'] = price;
+      if (category != null) payload['category'] = category;
+      if (description != null) payload['description'] = description;
+
+      final res = await http.patch(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+      if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+      return res;
+    } catch (e) {
+      showServiceUnavailable();
+      rethrow;
+    }
+  }
+
+  /// Delete a marketplace listing via DELETE /user/market/listings/{listing_id}
+  static Future<http.Response> deleteMarketListing({
+    required String accessToken,
+    required String listingId,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.marketListingsEndpoint}/$listingId',
+      );
+      final res = await http.delete(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+      return res;
+    } catch (e) {
+      showServiceUnavailable();
+      rethrow;
+    }
+  }
+
   /// Add bonds by range.
   static Future<http.Response> addBondsRange({
     required String accessToken,

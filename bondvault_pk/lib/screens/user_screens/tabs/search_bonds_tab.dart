@@ -7,7 +7,11 @@ import '../bond_ocr_parser.dart';
 
 class SearchBondsTab extends StatefulWidget {
   final bool isVerified;
-  const SearchBondsTab({super.key, required this.isVerified});
+
+  const SearchBondsTab({
+    super.key,
+    required this.isVerified,
+  });
 
   @override
   State<SearchBondsTab> createState() => _SearchBondsTabState();

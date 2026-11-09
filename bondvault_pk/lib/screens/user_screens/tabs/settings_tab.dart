@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/app_theme.dart';
+import '../../../utils/permission_utils.dart';
 import '../../../widgets/widgets.dart';
 
 class SettingsTab extends StatefulWidget {
@@ -621,6 +622,37 @@ class _SettingsTabState extends State<SettingsTab> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     onTap: _showToastDurationDialog,
+                  ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.security_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text(
+                      'App Permissions',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Camera, Notifications & Storage',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    onTap: () {
+                      PermissionUtils.requestAppPermissions();
+                    },
                   ),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),

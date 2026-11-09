@@ -26,6 +26,7 @@ from ..database import DB
 from ..logging import get_logger, setup_logging
 from ..redis import RedisWrapper
 from ..utilities.auth_tokens import validate_jwt_config
+from .admin_audit import ensure_admin_audit_table
 from .db_initializor import DB_initializor
 from .db_monitor import DatabaseMonitor
 from .drawlist_automation import (
@@ -66,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         monitor: DatabaseMonitor = DatabaseMonitor(DB)
         await monitor.wait_for_connection()
         await ensure_admin_tasks_table()
+        await ensure_admin_audit_table()
         monitor_task = asyncio.create_task(
             monitor.start(), name="Database-Health-Monitor"
         )

@@ -16,12 +16,11 @@
 """
 from datetime import date, datetime
 from io import BytesIO
-from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
 from asyncpg import Record
-from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import Response
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -39,13 +38,19 @@ from starlette.exceptions import HTTPException
 
 from .. import models, payloads, responses
 from ..configs import PRIZE_POSITION_NAMES, PrizeBondDenominations
+from ..payloads.basic import DrawListUploadRequest
+from ..responses.base import (
+    DrawListSummary,
+    DrawListWinner,
+    DrawListWinnersResponse,
+)
 from ..database import DB
 from ..services.drawlist_automation import PAKISTAN_STANDARD_TIME
 from ..services.drawlist_import import (
     import_text_draw_result,
-    parse_text_draw_result,
     remove_completed_drawlist_tasks,
 )
+from ..utilities.scrapper.models import PrizeBondTextResult
 from ..utilities.auth_dependencies import get_current_admin, get_current_user
 
 router = APIRouter(
@@ -81,11 +86,11 @@ async def _fetch_user_drawlist(draw_id: UUID) -> list[Record]:
 
 def _drawlist_winners_response(
     records: list[Record],
-) -> responses.DrawListWinnersResponse:
+) -> DrawListWinnersResponse:
     """Build the public draw/winner response from joined database records."""
     draw = records[0]
     winners = [
-        responses.DrawListWinner(
+        DrawListWinner(
             bond_number=record["bond_number"],
             prize_position=record["prize_position"],
             prize_name=PRIZE_POSITION_NAMES[record["prize_position"]],
@@ -94,7 +99,7 @@ def _drawlist_winners_response(
         for record in records
         if record["bond_number"] is not None
     ]
-    return responses.DrawListWinnersResponse(
+    return DrawListWinnersResponse(
         draw_id=draw["draw_id"],
         draw_date=draw["draw_date"],
         denomination=draw["denomination"],
@@ -105,12 +110,12 @@ def _drawlist_winners_response(
 
 @user_router.get(
     path="",
-    response_model=list[responses.DrawListSummary],
+    response_model=list[DrawListSummary],
     summary="Fetch all available draw lists",
 )
 async def get_user_drawlists(
     user: Annotated[models.UserInfo, Depends(get_current_user)],
-) -> list[responses.DrawListSummary]:
+) -> list[DrawListSummary]:
     """Return all imported draw lists and the count of winning bonds in each."""
     records = await DB.fetch(
         """
@@ -123,20 +128,20 @@ async def get_user_drawlists(
         """
     )
     return [
-        responses.DrawListSummary.model_validate(dict(record))
+        DrawListSummary.model_validate(dict(record))
         for record in records
     ]
 
 
 @user_router.get(
     path="/{draw_id}/bonds",
-    response_model=responses.DrawListWinnersResponse,
+    response_model=DrawListWinnersResponse,
     summary="Fetch the winning bonds in a draw list",
 )
 async def get_user_drawlist_bonds(
     draw_id: UUID,
     user: Annotated[models.UserInfo, Depends(get_current_user)],
-) -> responses.DrawListWinnersResponse:
+) -> DrawListWinnersResponse:
     """Return all winning bonds and prize details for one imported draw."""
     records = await _fetch_user_drawlist(draw_id)
     return _drawlist_winners_response(records)
@@ -331,63 +336,66 @@ async def delete_upcoming_draw(
     return responses.BaseResponse(message="Upcoming draw removed from schedule.")
 
 
+@router.delete(
+        path="/{draw_id}",
+        response_model=responses.BaseResponse,
+        summary="Delete an imported draw list",
+)
+async def delete_drawlist(
+        draw_id: UUID,
+        admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> responses.BaseResponse:
+        """Delete an imported draw and its winner rows."""
+        deleted_draw = await DB.fetchrow(
+            """
+            DELETE FROM "drawlists"
+            WHERE "draw_id" = $1
+            RETURNING "draw_id"
+            """,
+            draw_id,
+        )
+        if deleted_draw is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Draw list not found.",
+            )
+        return responses.BaseResponse(message="Draw list and its winners deleted.")
+
+
 @router.post(
     path="",
     response_model= responses.BaseResponse,
-    summary="Add a new drawlist.",
+    summary="Import a draw list from structured winning-number data",
     status_code=status.HTTP_201_CREATED,
 )
 async def add_new_drawlist(
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
-    denomination: Annotated[PrizeBondDenominations, Form(...)],
-    draw_date: Annotated[date, Form(...)],
-    file: Annotated[UploadFile, File(...)],
+    payload: DrawListUploadRequest,
 ) -> responses.BaseResponse:
-    """Validate and import a text draw list provided by an administrator."""
-    try:
-        filename = file.filename or ""
-        if Path(filename).suffix.casefold() != ".txt":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only .txt draw-list files can be uploaded.",
-            )
-
-        content = await file.read()
-        if not content:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The uploaded draw-list file is empty.",
-            )
-        try:
-            result = parse_text_draw_result(
-                content,
-                int(denomination),
-                draw_date,
-                source="admin-upload",
-            )
-        except ValueError as error:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(error),
-            ) from error
-
-        imported_count = await import_text_draw_result(result, DB)
-        if imported_count is None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    "A draw result for this denomination and date already exists."
-                ),
-            )
-        removed_tasks = await remove_completed_drawlist_tasks(DB)
-    finally:
-        await file.close()
+    """Validate and import a JSON draw-list entry submitted by an administrator."""
+    result = PrizeBondTextResult(
+        denomination=int(payload.denomination),
+        draw_date=payload.draw_date,
+        url="admin-api-upload",
+        first_prize_numbers=tuple(payload.first_prize_numbers),
+        second_prize_numbers=tuple(payload.second_prize_numbers),
+        third_prize_numbers=tuple(payload.third_prize_numbers),
+    )
+    imported_count = await import_text_draw_result(result, DB)
+    if imported_count is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "A draw result for this denomination and date already exists."
+            ),
+        )
+    removed_tasks = await remove_completed_drawlist_tasks(DB)
 
     return responses.BaseResponse(
         status_code=status.HTTP_201_CREATED,
         message=(
             f"Imported {imported_count} winning bonds for the "
-            f"{denomination} denomination draw dated {draw_date}. "
+            f"{payload.denomination} denomination draw dated {payload.draw_date}. "
             f"Removed {removed_tasks} completed admin task(s)."
         )
     )
