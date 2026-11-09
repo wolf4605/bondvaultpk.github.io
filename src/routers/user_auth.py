@@ -33,12 +33,13 @@ from ..utilities.auth import hash_password, verify_password
 from ..utilities.auth_dependencies import (
     clear_access_token_headers,
     get_current_user,
+    record_failed_login_attempt,
     revoke_sessions,
 )
 from ..utilities.auth_tokens import create_access_token, token_lifetime
 
 logger = logging.getLogger("application.audit")
-router = APIRouter(prefix="/users", tags=["User Authentication"])
+router = APIRouter(prefix="/user", tags=["User Authentication"])
 
 PASSWORD_RECOVERY_RESPONSE_MESSAGE = (
     "If an eligible account exists for that email address, "
@@ -82,6 +83,11 @@ async def login_user(
         credentials.password,
         record["password_hash"],
     ):
+        await record_failed_login_attempt(
+            request,
+            "user",
+            str(record["id"]) if record is not None else credentials.username,
+        )
         logger.warning(
             "user authentication failed",
             extra={"event": "auth.login.failed", "role": "user"},
@@ -102,6 +108,11 @@ async def login_user(
         """,
         user.id,
     ) is not True:
+        await record_failed_login_attempt(
+            request,
+            "user",
+            str(record["id"]),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password.",
@@ -116,6 +127,11 @@ async def login_user(
             user.id,
         )
         if current_password_hash != record["password_hash"]:
+            await record_failed_login_attempt(
+                request,
+                "user",
+                str(record["id"]),
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username or password.",

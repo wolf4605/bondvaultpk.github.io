@@ -279,3 +279,17 @@ class MarketListingUpdate(BaseModel):
         if value is None:
             raise ValueError("This field cannot be null.")
         return value
+
+
+class MarketListingRemovalRequest(BaseModel):
+    """Reason an administrator is removing a marketplace listing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=3, max_length=1000)
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def normalize_reason(cls, value: object) -> object:
+        """Trim a removal reason before validating it."""
+        return value.strip() if isinstance(value, str) else value

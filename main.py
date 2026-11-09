@@ -26,6 +26,7 @@ import asyncpg
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from redis.exceptions import RedisError
 from scalar_fastapi import AgentScalarConfig, Layout, get_scalar_api_reference
 from starlette.exceptions import HTTPException as _HTTPException
 from starlette.responses import Response
@@ -35,7 +36,10 @@ from src.configs import AppSettings
 from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
 from src.routers.bonds import router as bond_router
-from src.routers.drawlists import router as draw_router
+from src.routers.drawlists import (
+    router as draw_router,
+    user_router as user_drawlists_router,
+)
 from src.routers.system import router as system_router
 from src.routers.user import router as user_router
 from src.routers.user_auth import router as user_auth_router
@@ -48,6 +52,9 @@ from src.utilities.auth_tokens import ACCESS_TOKEN_EXPIRES_HEADER, ACCESS_TOKEN_
 # ╚══════════════════════════════════════════════════════════╝
 
 exception_file_logger = logging.getLogger("application.errors")
+API_PREFIXES = ("/admins", "/bonds", "/drawlists", "/system", "/user")
+RATE_LIMITED_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+IP_REQUESTS_PER_MINUTE = 300
 
 # ╔══════════════════════════════════════════════════════════╗
 # ║               MAIN APPLICATION ENTRYPOINT                ║
@@ -74,6 +81,7 @@ app.include_router(bond_router)
 app.include_router(admin_router)
 app.include_router(user_router)
 app.include_router(draw_router)
+app.include_router(user_drawlists_router)
 app.include_router(system_router)
 
 app.add_middleware(
@@ -85,6 +93,84 @@ app.add_middleware(
 )
 
 
+def _ip_rate_limit_policy(
+    path: str,
+    method: str,
+) -> tuple[str, int, int] | None:
+    """Return a stricter per-IP policy for sensitive or expensive endpoints."""
+    if path in {"/system", "/system/health"}:
+        return None
+
+    policies: dict[str, tuple[str, int, int]] = {
+        "/user/auth/login": ("login", 10, 15 * 60),
+        "/admins/auth/login": ("login", 10, 15 * 60),
+        "/user/auth/register": ("registration", 10, 60 * 60),
+        "/user/auth/password-recovery": ("password-recovery", 5, 60 * 60),
+        "/system/verification-code": ("verification-code", 5, 60 * 60),
+        "/user/auth/password-recovery/complete": (
+            "password-recovery-complete",
+            10,
+            60,
+        ),
+        "/system/verification-code/verify": (
+            "verification-code-verify",
+            10,
+            60,
+        ),
+        "/user/auth/check-availability": ("availability", 30, 60),
+    }
+    if path in policies:
+        return policies[path]
+
+    if path.startswith("/bonds/draw-results/"):
+        return "bond-search", 120, 60
+
+    if method in RATE_LIMITED_METHODS:
+        return "write", 60, 60
+    return "read", 300, 60
+
+
+async def enforce_ip_rate_limit(request: Request) -> None:
+    """Limit API traffic by peer IP, with stricter policies where appropriate."""
+    path = request.url.path
+    if not any(
+        path == prefix or path.startswith(f"{prefix}/")
+        for prefix in API_PREFIXES
+    ):
+        return
+
+    client_ip = request.client.host if request.client is not None else "unknown"
+    redis_wrapper = request.app.state.redis_wrapper
+    route_policy = _ip_rate_limit_policy(path, request.method)
+    limits = [
+        ("ip:all-api", IP_REQUESTS_PER_MINUTE, 60),
+    ]
+    if route_policy is not None:
+        bucket, limit, window_seconds = route_policy
+        limits.append((f"ip:{bucket}", limit, window_seconds))
+
+    for bucket, limit, window_seconds in limits:
+        try:
+            retry_after = await redis_wrapper.check_rate_limit(
+                bucket,
+                client_ip,
+                limit,
+                window_seconds,
+            )
+        except (ConnectionError, RedisError, OSError, TimeoutError) as error:
+            raise _HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The rate-limiting service is temporarily unavailable.",
+            ) from error
+
+        if retry_after is not None:
+            raise _HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests. Please try again later.",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+
 @app.middleware("http")
 async def audit_admin_actions(
     request: Request,
@@ -93,6 +179,7 @@ async def audit_admin_actions(
     """Handle request exceptions and audit administrator APIs without credentials."""
     started_at = perf_counter()
     try:
+        await enforce_ip_rate_limit(request)
         response = await call_next(request)
     except Exception as error:
         response = await handle_app_error(request, error)

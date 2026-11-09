@@ -33,6 +33,7 @@ from ..utilities.auth import hash_password, verify_password
 from ..utilities.auth_dependencies import (
     clear_access_token_headers,
     get_current_admin,
+    record_failed_login_attempt,
     revoke_sessions,
 )
 from ..utilities.auth_tokens import create_access_token, token_lifetime
@@ -269,6 +270,11 @@ async def login_admin(
         credentials.password,
         record["password_hash"],
     ):
+        await record_failed_login_attempt(
+            request,
+            "admin",
+            str(record["id"]) if record is not None else credentials.username,
+        )
         logger.warning(
             "administrator authentication failed",
             extra={"event": "auth.login.failed", "role": "admin"},
@@ -288,6 +294,11 @@ async def login_admin(
             admin.id,
         )
         if current_password_hash != record["password_hash"]:
+            await record_failed_login_attempt(
+                request,
+                "admin",
+                str(record["id"]),
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username or password.",

@@ -199,8 +199,9 @@ async def fetch_market_listings(
 async def delete_market_listing(
     listing_id: UUID,
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+    payload: payloads.MarketListingRemovalRequest,
 ) -> responses.BaseResponse:
-    """Delete any marketplace listing and email its owner."""
+    """Delete any marketplace listing and email its owner the reason."""
     async with DB.transaction() as connection:
         listing = await connection.fetchrow(
             """
@@ -245,6 +246,7 @@ async def delete_market_listing(
             listing["email"],
             listing["username"],
             listing["title"],
+            payload.reason,
         )
     except EmailDeliveryError as error:
         logger.exception(

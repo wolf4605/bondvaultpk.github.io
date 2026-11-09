@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
+import '../../config/app_theme.dart';
+import '../../widgets/widgets.dart';
 import '../login_screen.dart';
 import 'admin_users_screen.dart';
 
@@ -23,8 +25,7 @@ class AdminHomeScreen extends StatefulWidget {
 }
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
-  int _currentIndex =
-      0; // 0: Overview, 1: Users, 2: Market, 3: Draws, 4: Settings
+  int _currentIndex = 0;
   bool _isLoadingStats = true;
   int _totalUsers = 0;
   List<dynamic> _usersList = [];
@@ -153,7 +154,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF131B2E)),
+            icon: const Icon(Icons.menu, color: AppColors.onSurface),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -186,7 +187,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF003527),
+                        color: AppColors.primary,
                       ),
                     ),
                     const Text(
@@ -194,28 +195,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFFD97706),
+                        color: AppColors.warning,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFEDD5),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'ADMIN',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF904D00),
-                        ),
-                      ),
-                    ),
+                    AppBadge.admin(),
                   ],
                 ),
                 const Text(
@@ -235,7 +219,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             UserAccountsDrawerHeader(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF003527), Color(0xFF064E3B)],
+                  colors: [AppColors.primary, AppColors.primaryContainer],
                 ),
               ),
               currentAccountPicture: const CircleAvatar(
@@ -243,7 +227,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 child: Icon(
                   Icons.admin_panel_settings,
                   size: 36,
-                  color: Color(0xFF003527),
+                  color: AppColors.primary,
                 ),
               ),
               accountName: Text(
@@ -297,8 +281,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.logout, color: AppColors.error),
+              title: const Text(
+                'Logout',
+                style: TextStyle(color: AppColors.error),
+              ),
               onTap: _logout,
             ),
           ],
@@ -350,82 +337,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         padding: const EdgeInsets.all(16.0),
         children: [
           // Top Console Banner
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'ADMIN CONTROL CONSOLE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: Color(0xFF404944),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFA7F3D0),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF065F46),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'SYS ONLINE',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF065F46),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Greeting
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF003527),
-                letterSpacing: -0.5,
-              ),
-              children: [
-                TextSpan(text: 'Assalam-o-Alaikum, '),
-                TextSpan(
-                  text: 'Admin',
-                  style: TextStyle(color: Color(0xFF904D00)),
-                ),
-              ],
-            ),
+          AppSectionHeader(
+            title: 'Assalam-o-Alaikum, Admin',
+            tagline: 'ADMIN CONTROL CONSOLE',
           ),
           const SizedBox(height: 16),
 
           // Core Infrastructure Status Card
-          Container(
+          AppCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2F3FF),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E7FF)),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -433,55 +353,28 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
-                      children: [
-                        const Icon(
+                      children: const [
+                        Icon(
                           Icons.dns_outlined,
                           size: 18,
-                          color: Color(0xFF003527),
+                          color: AppColors.primary,
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
+                        SizedBox(width: 8),
+                        Text(
                           'CORE INFRASTRUCTURE STATUS',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.0,
-                            color: Color(0xFF003527),
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFA7F3D0),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF065F46),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'NORMAL',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF065F46),
-                            ),
-                          ),
-                        ],
-                      ),
+                    AppBadge(
+                      label: 'NORMAL',
+                      type: AppBadgeType.success,
+                      isSmall: true,
                     ),
                   ],
                 ),
@@ -492,7 +385,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       child: _buildSubStatusCard(
                         'Backend\nAPI',
                         'Live',
-                        Colors.green,
+                        AppColors.success,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -500,7 +393,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       child: _buildSubStatusCard(
                         'Database\n(PG)',
                         'OK',
-                        Colors.green,
+                        AppColors.success,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -508,7 +401,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       child: _buildSubStatusCard(
                         'Redis\n(Cache)',
                         'Active',
-                        Colors.green,
+                        AppColors.success,
                       ),
                     ),
                   ],
@@ -519,32 +412,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           const SizedBox(height: 24),
 
           // Investor & User Overview Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: const [
-                  Icon(
-                    Icons.group_outlined,
-                    size: 20,
-                    color: Color(0xFF003527),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Investor & User Overview',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF003527),
-                    ),
-                  ),
-                ],
-              ),
-              const Text(
-                'Synced 1m ago',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ],
+          const AppSectionHeader(
+            title: 'Investor & User Overview',
+            tagline: 'ANALYTICS',
+            action: Text(
+              'Synced 1m ago',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -552,179 +426,37 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.person_outline,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Total Users',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _isLoadingStats ? '...' : '$_totalUsers',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF131B2E),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Registered accounts',
-                        style: TextStyle(fontSize: 9, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                child: AppStatCard(
+                  title: 'Total Users',
+                  value: _isLoadingStats ? '...' : '$_totalUsers',
+                  icon: Icons.person_outline,
+                  subtitle: 'Registered',
+                  iconColor: Colors.blue,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.person_add_outlined,
-                          size: 16,
-                          color: Colors.teal,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'New (Last 7d)',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _isLoadingUsers ? '...' : '+$_newUsersCount',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF131B2E),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Active onboarding',
-                        style: TextStyle(fontSize: 9, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                child: AppStatCard(
+                  title: 'New (7d)',
+                  value: _isLoadingUsers ? '...' : '+$_newUsersCount',
+                  icon: Icons.person_add_outlined,
+                  subtitle: 'Onboarded',
+                  iconColor: Colors.teal,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEDD5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.fingerprint,
-                              size: 16,
-                              color: Color(0xFF904D00),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF904D00),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              'PENDING',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Awaiting',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF904D00),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$unverifiedCount Users',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF904D00),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      InkWell(
-                        onTap: () => setState(() => _currentIndex = 1),
-                        child: Row(
-                          children: const [
-                            Text(
-                              'Revies →',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF904D00),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                child: AppStatCard(
+                  title: 'Awaiting',
+                  value: '$unverifiedCount Users',
+                  icon: Icons.fingerprint,
+                  subtitle: 'Reviews →',
+                  iconColor: AppColors.warning,
+                  onTap: () => setState(() => _currentIndex = 1),
+                  badge: AppBadge(
+                    label: 'PENDING',
+                    type: AppBadgeType.warning,
+                    isSmall: true,
                   ),
                 ),
               ),
@@ -739,9 +471,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -752,29 +484,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF131B2E),
+                  color: AppColors.onSurface,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: badgeColor,
-                  ),
-                ),
+              AppBadge(
+                label: badgeText,
+                type: AppBadgeType.success,
+                isSmall: true,
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -789,14 +511,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildMarketView() {
-    return const Center(child: Text('Market Management'));
+    return const AppEmptyState(
+      icon: Icons.storefront_outlined,
+      title: 'Market Management',
+      message: 'Manage marketplace offers and trade policy limits.',
+    );
   }
 
   Widget _buildDrawsView() {
-    return const Center(child: Text('Draws Management'));
+    return const AppEmptyState(
+      icon: Icons.calendar_today_outlined,
+      title: 'Draws Management',
+      message: 'Configure SBP gazette sync and draw result uploads.',
+    );
   }
 
   Widget _buildSettingsView() {
-    return const Center(child: Text('Admin Settings'));
+    return const AppEmptyState(
+      icon: Icons.settings_outlined,
+      title: 'Admin Settings',
+      message: 'System override policies, audit logs, and security settings.',
+    );
   }
 }

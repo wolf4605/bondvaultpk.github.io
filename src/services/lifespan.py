@@ -73,10 +73,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             redis_monitor.start(),
             name="Redis-Health-Monitor",
         )
-        drawlist_automation_task = asyncio.create_task(
-            run_drawlist_automation(),
-            name="Drawlist-Automation",
-        )
+        # drawlist_automation_task = asyncio.create_task(
+        #     run_drawlist_automation(),
+        #     name="Drawlist-Automation",
+        # )
         yield
 
     finally:

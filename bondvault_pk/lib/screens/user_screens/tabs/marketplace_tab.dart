@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../config/app_theme.dart';
+import '../../../config/responsive.dart';
+import '../../../widgets/widgets.dart';
+
 class MarketplaceTab extends StatelessWidget {
   final bool isVerified;
   const MarketplaceTab({super.key, required this.isVerified});
@@ -7,52 +11,102 @@ class MarketplaceTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!isVerified) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'Feature Locked: Account is unverified.',
-            style: TextStyle(
-              color: Colors.orange,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+      return const AppEmptyState(
+        icon: Icons.storefront_outlined,
+        title: 'Feature Locked',
+        message: 'Your account is currently under verification review. Marketplace trading will unlock automatically once approved.',
       );
     }
-    return ListView(
-      padding: const EdgeInsets.all(24.0),
-      children: [
-        Text(
-          'Prize Bond Marketplace',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.w(context, 16),
+        vertical: Responsive.h(context, 12),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: Responsive.maxContentWidth(context),
           ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: const Icon(Icons.store, color: Colors.white),
-            ),
-            title: const Text('Rs. 750 Prize Bond (Series A)'),
-            subtitle: const Text('Asking Price: Rs. 750 | Category: Sell'),
-            trailing: Text(
-              'Contact',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.secondary,
-                fontWeight: FontWeight.bold,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppSectionHeader(
+                title: 'Prize Bond Marketplace',
+                tagline: 'TRADE & OFFERS',
               ),
-            ),
-            onTap: () {},
+              const SizedBox(height: 12),
+              AppCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.storefront_outlined,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Rs. 750 Prize Bond (Series A)',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.onSurface,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              AppBadge(
+                                label: 'SELL',
+                                type: AppBadgeType.info,
+                                isSmall: true,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Asking Price: Rs. 750 | Serial: 004921',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    AppButton(
+                      label: 'Contact',
+                      fullWidth: false,
+                      height: 38,
+                      onPressed: () {
+                        showAppToast(
+                          context,
+                          'Contacting seller...',
+                          type: AppNotificationType.info,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

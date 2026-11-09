@@ -6,4 +6,6 @@ An administrator removed the following listing from the BondVault PK marketplace
 
 $listing_title
 
+$reason
+
 If you believe this was a mistake, contact BondVault PK support.

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/app_config.dart';
+import '../../config/app_theme.dart';
+import '../../widgets/widgets.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final String accessToken;
@@ -26,7 +28,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  String? _loadingUserId;
+  String? _loadingAction;
+
   Future<void> _approveUser(String userId) async {
+    setState(() {
+      _loadingUserId = userId;
+      _loadingAction = 'approve';
+    });
+
     try {
       final res = await http.post(
         Uri.parse('${AppConfig.baseUrl}/admins/users/$userId/approve'),
@@ -34,25 +44,46 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User approved successfully!')),
+        showAppNotificationSheet(
+          context: context,
+          title: 'User Verified',
+          message: 'User account has been verified successfully.',
+          type: AppNotificationType.success,
         );
         widget.onDataChanged();
       } else {
         final data = jsonDecode(res.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['detail'] ?? 'Failed to approve user.')),
+        showAppNotificationSheet(
+          context: context,
+          title: 'Approval Failed',
+          message: data['detail'] ?? 'Failed to approve user.',
+          type: AppNotificationType.error,
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connection error approving user.')),
+      showAppNotificationSheet(
+        context: context,
+        title: 'Connection Error',
+        message: 'Could not connect to server to approve user.',
+        type: AppNotificationType.error,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingUserId = null;
+          _loadingAction = null;
+        });
+      }
     }
   }
 
   Future<void> _blacklistUser(String userId, DateTime? durationUntil) async {
+    setState(() {
+      _loadingUserId = userId;
+      _loadingAction = 'ban';
+    });
+
     try {
       final body = durationUntil != null
           ? {'duration_until': durationUntil.toUtc().toIso8601String()}
@@ -67,27 +98,46 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User blacklisted successfully.')),
+        showAppNotificationSheet(
+          context: context,
+          title: 'User Blacklisted',
+          message: 'User account has been blacklisted and access suspended.',
+          type: AppNotificationType.warning,
         );
         widget.onDataChanged();
       } else {
         final data = jsonDecode(res.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['detail'] ?? 'Failed to blacklist user.'),
-          ),
+        showAppNotificationSheet(
+          context: context,
+          title: 'Blacklist Failed',
+          message: data['detail'] ?? 'Failed to blacklist user.',
+          type: AppNotificationType.error,
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connection error blacklisting user.')),
+      showAppNotificationSheet(
+        context: context,
+        title: 'Connection Error',
+        message: 'Could not connect to server to blacklist user.',
+        type: AppNotificationType.error,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingUserId = null;
+          _loadingAction = null;
+        });
+      }
     }
   }
 
   Future<void> _unblacklistUser(String userId) async {
+    setState(() {
+      _loadingUserId = userId;
+      _loadingAction = 'unban';
+    });
+
     try {
       final res = await http.delete(
         Uri.parse('${AppConfig.baseUrl}/admins/users/$userId/blacklist'),
@@ -95,76 +145,99 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       );
       if (!mounted) return;
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User removed from blacklist.')),
+        showAppNotificationSheet(
+          context: context,
+          title: 'User Unbanned',
+          message: 'User removed from blacklist and account restored.',
+          type: AppNotificationType.success,
         );
         widget.onDataChanged();
       } else {
         final data = jsonDecode(res.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['detail'] ?? 'Failed to unblacklist user.'),
-          ),
+        showAppNotificationSheet(
+          context: context,
+          title: 'Action Failed',
+          message: data['detail'] ?? 'Failed to unblacklist user.',
+          type: AppNotificationType.error,
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connection error unblacklisting user.')),
+      showAppNotificationSheet(
+        context: context,
+        title: 'Connection Error',
+        message: 'Could not connect to server to unblacklist user.',
+        type: AppNotificationType.error,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingUserId = null;
+          _loadingAction = null;
+        });
+      }
     }
   }
 
   Future<void> _deleteUser(String userId) async {
-    final confirmed = await showDialog<bool>(
+    showAppNotificationSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete User', style: TextStyle(color: Colors.red)),
-        content: const Text(
-          'Are you sure you want to permanently delete this user account?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      title: 'Delete User Account',
+      message: 'Are you sure you want to permanently delete this user account? This action cannot be undone.',
+      type: AppNotificationType.error,
+      dismissLabel: 'Cancel',
+      customAction: AppButton(
+        label: 'Permanently Delete',
+        variant: AppButtonVariant.danger,
+        isLoading: _loadingUserId == userId && _loadingAction == 'delete',
+        onPressed: () async {
+          Navigator.pop(context);
+          setState(() {
+            _loadingUserId = userId;
+            _loadingAction = 'delete';
+          });
+          try {
+            final res = await http.delete(
+              Uri.parse('${AppConfig.baseUrl}/admins/users/$userId'),
+              headers: {'Authorization': 'Bearer ${widget.accessToken}'},
+            );
+            if (!mounted) return;
+            if (res.statusCode == 200) {
+              showAppNotificationSheet(
+                context: context,
+                title: 'User Deleted',
+                message: 'User account has been permanently deleted.',
+                type: AppNotificationType.success,
+              );
+              widget.onDataChanged();
+            } else {
+              final data = jsonDecode(res.body);
+              showAppNotificationSheet(
+                context: context,
+                title: 'Delete Failed',
+                message: data['detail'] ?? 'Failed to delete user.',
+                type: AppNotificationType.error,
+              );
+            }
+          } catch (_) {
+            if (!mounted) return;
+            showAppNotificationSheet(
+              context: context,
+              title: 'Connection Error',
+              message: 'Could not connect to server to delete user.',
+              type: AppNotificationType.error,
+            );
+          } finally {
+            if (mounted) {
+              setState(() {
+                _loadingUserId = null;
+                _loadingAction = null;
+              });
+            }
+          }
+        },
       ),
     );
-
-    if (confirmed != true) return;
-
-    try {
-      final res = await http.delete(
-        Uri.parse('${AppConfig.baseUrl}/admins/users/$userId'),
-        headers: {'Authorization': 'Bearer ${widget.accessToken}'},
-      );
-      if (!mounted) return;
-      if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User deleted successfully.')),
-        );
-        widget.onDataChanged();
-      } else {
-        final data = jsonDecode(res.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['detail'] ?? 'Failed to delete user.')),
-        );
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connection error deleting user.')),
-      );
-    }
   }
 
   void _showBlacklistDialog(BuildContext context, String userId) {
@@ -172,7 +245,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           title: const Text('Ban User'),
           content: Column(
@@ -210,16 +283,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.shade800,
-                foregroundColor: Colors.white,
-              ),
+            AppButton(
+              label: 'Confirm Ban',
+              variant: AppButtonVariant.secondary,
+              fullWidth: false,
+              isLoading: _loadingUserId == userId && _loadingAction == 'ban',
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 DateTime? durationUntil;
                 final now = DateTime.now();
                 if (selectedPeriod == '1 day') {
@@ -237,7 +310,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 }
                 _blacklistUser(userId, durationUntil);
               },
-              child: const Text('Confirm Ban'),
             ),
           ],
         ),
@@ -368,30 +440,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: AppTextField(
                     controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by Name, CNIC, Mobile, or ID...',
-                      hintStyle: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                      ),
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
+                    hintText: 'Search by Name, CNIC, Mobile, or ID...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
                     onChanged: (val) => setState(() => _searchQuery = val),
                   ),
                 ),
@@ -405,7 +457,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                   child: const Icon(
                     Icons.tune,
-                    color: Color(0xFF131B2E),
+                    color: AppColors.onSurface,
                     size: 20,
                   ),
                 ),
@@ -413,38 +465,36 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Filter Chips Row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('All', null),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    'Pending',
-                    '$pendingCount',
-                    badgeColor: const Color(0xFF904D00),
-                    badgeBg: const Color(0xFFFFEDD5),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    'Verified',
-                    formatNumberStatic(verifiedCount),
-                    badgeColor: const Color(0xFF003527),
-                    badgeBg: const Color(0xFFA7F3D0),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Suspended', null),
-                ],
-              ),
+            // Filter Chips (Wrap methodology #6)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildFilterChip('All', null),
+                _buildFilterChip(
+                  'Pending',
+                  '$pendingCount',
+                  badgeColor: AppColors.secondary,
+                  badgeBg: const Color(0xFFFFEDD5),
+                ),
+                _buildFilterChip(
+                  'Verified',
+                  formatNumberStatic(verifiedCount),
+                  badgeColor: AppColors.primary,
+                  badgeBg: const Color(0xFFA7F3D0),
+                ),
+                _buildFilterChip('Suspended', null),
+              ],
             ),
             const SizedBox(height: 16),
 
             // Users List
             Expanded(
               child: filteredUsers.isEmpty
-                  ? const Center(
-                      child: Text('No users match the selected filter.'),
+                  ? const AppEmptyState(
+                      icon: Icons.people_outline,
+                      title: 'No Users Found',
+                      message: 'No registered user accounts match your selected filter or search query.',
                     )
                   : ListView.builder(
                       itemCount: filteredUsers.length,
@@ -466,281 +516,201 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             '12 Oct 2023';
                         final userId = user['id']?.toString() ?? '';
 
-                        // Status Badge properties
-                        String statusText = 'PENDING';
-                        Color statusBg = const Color(0xFFFFEDD5);
-                        Color statusColor = const Color(0xFF904D00);
+                        final isApproving =
+                            _loadingUserId == userId &&
+                            _loadingAction == 'approve';
+                        final isBanning =
+                            _loadingUserId == userId &&
+                            (_loadingAction == 'ban' ||
+                                _loadingAction == 'unban');
+                        final isDeleting =
+                            _loadingUserId == userId &&
+                            _loadingAction == 'delete';
 
-                        if (isBlacklisted) {
-                          statusText = 'SUSPENDED';
-                          statusBg = Colors.red.shade50;
-                          statusColor = const Color(0xFFBA1A1A);
-                        } else if (isVerified) {
-                          statusText = 'VERIFIED';
-                          statusBg = const Color(0xFFA7F3D0);
-                          statusColor = const Color(0xFF065F46);
-                        }
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE2E7FF)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF064E3B)
-                                    .withValues(alpha: 0.04),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Card Header
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          color: isVerified
-                                              ? const Color(0xFFA7F3D0)
-                                              : const Color(0xFFFFEDD5),
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          initials,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w900,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: AppCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Card Header
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
                                             color: isVerified
-                                                ? const Color(0xFF065F46)
-                                                : const Color(0xFF904D00),
+                                                ? const Color(0xFFA7F3D0)
+                                                : const Color(0xFFFFEDD5),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            initials,
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w900,
+                                              color: isVerified
+                                                  ? const Color(0xFF065F46)
+                                                  : AppColors.secondary,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          InkWell(
-                                            onTap: () => _showUserDetailsDialog(
-                                              Map<String, dynamic>.from(user),
-                                            ),
-                                            child: Text(
-                                              displayName,
-                                              style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF131B2E),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            InkWell(
+                                              onTap: () =>
+                                                  _showUserDetailsDialog(
+                                                    Map<String, dynamic>.from(
+                                                      user,
+                                                    ),
+                                                  ),
+                                              child: Text(
+                                                displayName,
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.onSurface,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '@${user['username'] ?? 'user'}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '@${user['username'] ?? 'user'}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: statusBg,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          isVerified
-                                              ? Icons.verified
-                                              : isBlacklisted
-                                              ? Icons.lock_outline
-                                              : Icons.hourglass_top,
-                                          size: 12,
-                                          color: statusColor,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          statusText,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: statusColor,
-                                          ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Card Body (2 Columns)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF9FAFB),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'EMAIL',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            email,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF131B2E),
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 10),
-                                          const Text(
-                                            'CREATED AT',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            createdAt,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF131B2E),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'CONTACT',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            contact,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF131B2E),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          const Text(
-                                            'LAST LOGIN',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            user['last_login']?.toString() ??
-                                                'Today, 11:20 AM',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF904D00),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                    AppBadge(
+                                      label: isBlacklisted
+                                          ? 'SUSPENDED'
+                                          : isVerified
+                                          ? 'VERIFIED'
+                                          : 'PENDING',
+                                      type: isBlacklisted
+                                          ? AppBadgeType.error
+                                          : isVerified
+                                          ? AppBadgeType.success
+                                          : AppBadgeType.warning,
+                                      icon: isBlacklisted
+                                          ? Icons.lock_outline
+                                          : isVerified
+                                          ? Icons.verified
+                                          : Icons.hourglass_top,
                                     ),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 16),
 
-                              // Suspension Reason Banner (if suspended)
-                              if (isBlacklisted) ...[
-                                const SizedBox(height: 12),
+                                // Card Body
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF2F2),
+                                    color: AppColors.surfaceContainerLow,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.red.shade200,
-                                    ),
                                   ),
                                   child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
                                     children: [
-                                      const Icon(
-                                        Icons.error_outline,
-                                        size: 16,
-                                        color: Color(0xFFBA1A1A),
-                                      ),
-                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
-                                          children: const [
-                                            Text(
-                                              'SUSPENSION REASON',
+                                          children: [
+                                            const Text(
+                                              'EMAIL',
                                               style: TextStyle(
                                                 fontSize: 9,
                                                 fontWeight: FontWeight.bold,
-                                                color: Color(0xFFBA1A1A),
+                                                color: Colors.grey,
                                               ),
                                             ),
-                                            SizedBox(height: 2),
+                                            const SizedBox(height: 2),
                                             Text(
-                                              'Multiple failed CNIC verification attempts & flagged IP anomalies',
+                                              email,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.onSurface,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            const Text(
+                                              'CREATED AT',
                                               style: TextStyle(
-                                                fontSize: 11,
-                                                color: Color(0xFF991B1B),
-                                                height: 1.3,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              createdAt,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.onSurface,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'CONTACT',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              contact,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.onSurface,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            const Text(
+                                              'LAST LOGIN',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              user['last_login']?.toString() ??
+                                                  'Today, 11:20 AM',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.secondary,
                                               ),
                                             ),
                                           ],
@@ -749,172 +719,139 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     ],
                                   ),
                                 ),
-                              ],
-                              const SizedBox(height: 16),
 
-                              // Card Footer Action Buttons
-                              Row(
-                                children: [
-                                  if (!isVerified && !isBlacklisted) ...[
-                                    Expanded(
-                                      child:
-                                          ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(
-                                              0xFF003527,
-                                            ),
-                                            foregroundColor: Colors.white,
-                                            elevation: 0,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 12,
-                                            ),
-                                          ).let(
-                                            (style) => ElevatedButton(
-                                              style: style,
-                                              onPressed: () =>
-                                                  _approveUser(userId),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: const [
-                                                  Icon(
-                                                    Icons.verified,
-                                                    size: 16,
-                                                    color: Colors.white,
-                                                  ),
-                                                  SizedBox(width: 6),
-                                                  Text(
-                                                    'Verify',
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
+                                // Suspension Reason Banner
+                                if (isBlacklisted) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.red.shade200,
+                                      ),
                                     ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Expanded(
-                                    child:
-                                        ElevatedButton.styleFrom(
-                                          backgroundColor: isBlacklisted
-                                              ? const Color(0xFF003527)
-                                              : const Color(0xFFFFEDD5),
-                                          foregroundColor: isBlacklisted
-                                              ? Colors.white
-                                              : const Color(0xFF904D00),
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                        ).let(
-                                          (style) => ElevatedButton(
-                                            style: style,
-                                            onPressed: () {
-                                              if (isBlacklisted) {
-                                                _unblacklistUser(userId);
-                                              } else {
-                                                _showBlacklistDialog(
-                                                  context,
-                                                  userId,
-                                                );
-                                              }
-                                            },
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  isBlacklisted
-                                                      ? Icons.lock_open
-                                                      : Icons.block,
-                                                  size: 16,
-                                                  color: isBlacklisted
-                                                      ? Colors.white
-                                                      : const Color(0xFF904D00),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  isBlacklisted
-                                                      ? 'Unban'
-                                                      : 'Ban User',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                    color: isBlacklisted
-                                                        ? Colors.white
-                                                        : const Color(
-                                                            0xFF904D00,
-                                                          ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(
+                                          Icons.error_outline,
+                                          size: 16,
+                                          color: AppColors.error,
                                         ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child:
-                                        ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFFFEE2E2,
-                                          ),
-                                          foregroundColor: const Color(
-                                            0xFF991B1B,
-                                          ),
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                        ).let(
-                                          (style) => ElevatedButton(
-                                            style: style,
-                                            onPressed: () =>
-                                                _deleteUser(userId),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: const [
-                                                Icon(
-                                                  Icons.delete_outline,
-                                                  size: 16,
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: const [
+                                              Text(
+                                                'SUSPENSION REASON',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.error,
+                                                ),
+                                              ),
+                                              SizedBox(height: 2),
+                                              Text(
+                                                'Multiple failed CNIC verification attempts & flagged IP anomalies',
+                                                style: TextStyle(
+                                                  fontSize: 11,
                                                   color: Color(0xFF991B1B),
+                                                  height: 1.3,
                                                 ),
-                                                SizedBox(width: 6),
-                                                Text(
-                                                  'Delete',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                    color: Color(0xFF991B1B),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                              ),
+                                            ],
                                           ),
                                         ),
+                                      ],
+                                    ),
                                   ),
                                 ],
-                              ),
-                            ],
+                                const SizedBox(height: 16),
+
+                                // Action Buttons Row with Loading/Waiting States
+                                Row(
+                                  children: [
+                                    if (!isVerified && !isBlacklisted) ...[
+                                      Expanded(
+                                        child: AppButton(
+                                          label: 'Verify',
+                                          isLoading: isApproving,
+                                          icon: const Icon(
+                                            Icons.verified,
+                                            size: 16,
+                                          ),
+                                          height: 44,
+                                          onPressed:
+                                              isApproving ||
+                                                  isBanning ||
+                                                  isDeleting
+                                              ? null
+                                              : () => _approveUser(userId),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    Expanded(
+                                      child: AppButton(
+                                        label: isBlacklisted
+                                            ? 'Unban'
+                                            : 'Ban User',
+                                        variant: isBlacklisted
+                                            ? AppButtonVariant.primary
+                                            : AppButtonVariant.secondary,
+                                        isLoading: isBanning,
+                                        icon: Icon(
+                                          isBlacklisted
+                                              ? Icons.lock_open
+                                              : Icons.block,
+                                          size: 16,
+                                        ),
+                                        height: 44,
+                                        onPressed:
+                                            isApproving ||
+                                                isBanning ||
+                                                isDeleting
+                                            ? null
+                                            : () {
+                                                if (isBlacklisted) {
+                                                  _unblacklistUser(userId);
+                                                } else {
+                                                  _showBlacklistDialog(
+                                                    context,
+                                                    userId,
+                                                  );
+                                                }
+                                              },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: AppButton(
+                                        label: 'Delete',
+                                        variant: AppButtonVariant.danger,
+                                        isLoading: isDeleting,
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 16,
+                                        ),
+                                        height: 44,
+                                        onPressed:
+                                            isApproving ||
+                                                isBanning ||
+                                                isDeleting
+                                            ? null
+                                            : () => _deleteUser(userId),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -939,10 +876,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF003527) : Colors.white,
+          color: isSelected ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF003527) : Colors.grey.shade300,
+            color: isSelected ? AppColors.primary : Colors.grey.shade300,
           ),
         ),
         child: Row(
@@ -953,7 +890,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : const Color(0xFF131B2E),
+                color: isSelected ? Colors.white : AppColors.onSurface,
               ),
             ),
             if (count != null) ...[
@@ -969,7 +906,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: badgeColor ?? const Color(0xFF131B2E),
+                    color: badgeColor ?? AppColors.onSurface,
                   ),
                 ),
               ),
@@ -986,8 +923,4 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       (Match m) => '${m[1]},',
     );
   }
-}
-
-extension on ButtonStyle {
-  Widget let(Widget Function(ButtonStyle style) builder) => builder(this);
 }

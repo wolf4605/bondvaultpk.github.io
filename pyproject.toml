@@ -17,8 +17,7 @@ authors = [
     ]
 licence = {name = "MIT License", "identifier" = "MIT", url = "https://wolf4605.github.io/bondvaultpk.github.io/"}
 
-initialize_db = true
-
+initialize_db = false
 requires-python = ">=3.14"
 
 dependencies = [
@@ -33,6 +32,7 @@ dependencies = [
     "PyJWT>=2.10.1",
     "python-multipart>=0.0.32",
     "redis>=6.4.0",
+    "reportlab>=5.1.0",
     "scalar-fastapi>=1.9.1",
     "xlrd>=2.0.2",
 ]

@@ -348,8 +348,13 @@ async def user_delete_bond_by_range(
         payload.denomination
     )
     if not bondlist_id:
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                             detail=f"No bondlist found against the {payload.denomination} for the user.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"No bondlist found against the {payload.denomination} "
+                "for the user."
+            ),
+        )
 
     async with DB.transaction() as conn:
     
@@ -445,8 +450,13 @@ payload: payloads.BondAddPayload
             payload.denomination
         )
     if not bondlist_id:
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f"No bondlist found against the {payload.denomination} for the user.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"No bondlist found against the {payload.denomination} "
+                "for the user."
+            ),
+        )
 
     async with DB.transaction() as conn:
         await conn.execute(

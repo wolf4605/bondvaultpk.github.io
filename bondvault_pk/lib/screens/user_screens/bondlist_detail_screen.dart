@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../config/app_theme.dart';
 import '../../utils/api_service.dart';
+import '../../widgets/widgets.dart';
 
 class BondlistDetailScreen extends StatefulWidget {
   final int denomination;
@@ -26,6 +28,7 @@ class _BondlistDetailScreenState extends State<BondlistDetailScreen> {
   late List<String> _bonds;
   bool _isLoadingWinnings = true;
   Map<String, List<Map<String, dynamic>>> _winningsMap = {};
+  String? _deletingBondNumber;
 
   @override
   void initState() {
@@ -52,131 +55,122 @@ class _BondlistDetailScreenState extends State<BondlistDetailScreen> {
         });
       }
     } catch (_) {
-      // Handle network error
     } finally {
       if (mounted) setState(() => _isLoadingWinnings = false);
     }
   }
 
-  Future<void> _deleteBond(String bondNumber) async {
-    final confirmed = await showDialog<bool>(
+  void _deleteBond(String bondNumber) {
+    showAppNotificationSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Bond'),
-        content: Text('Are you sure you want to delete bond $bondNumber?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      title: 'Remove Prize Bond',
+      message:
+          'Are you sure you want to remove bond number $bondNumber from your portfolio?',
+      type: AppNotificationType.warning,
+      dismissLabel: 'Cancel',
+      customAction: AppButton(
+        label: 'Confirm Delete',
+        variant: AppButtonVariant.danger,
+        isLoading: _deletingBondNumber == bondNumber,
+        onPressed: () async {
+          Navigator.pop(context);
+          setState(() {
+            _deletingBondNumber = bondNumber;
+          });
+          try {
+            final res = await ApiService.deleteBonds(
+              accessToken: widget.accessToken,
+              denomination: widget.denomination,
+              bonds: [bondNumber],
+            );
+
+            if (!mounted) return;
+            if (res.statusCode == 200) {
+              setState(() {
+                _bonds.remove(bondNumber);
+              });
+              widget.onBondsUpdated();
+              showAppNotificationSheet(
+                context: context,
+                title: 'Bond Removed',
+                message:
+                    'Bond number $bondNumber has been removed from portfolio successfully.',
+                type: AppNotificationType.success,
+              );
+            } else {
+              final data = jsonDecode(res.body);
+              showAppNotificationSheet(
+                context: context,
+                title: 'Delete Failed',
+                message: data['detail'] ?? 'Failed to delete bond.',
+                type: AppNotificationType.error,
+              );
+            }
+          } catch (e) {
+            if (!mounted) return;
+            showAppNotificationSheet(
+              context: context,
+              title: 'Connection Error',
+              message: 'Could not connect to server to delete bond.',
+              type: AppNotificationType.error,
+            );
+          } finally {
+            if (mounted) {
+              setState(() {
+                _deletingBondNumber = null;
+              });
+            }
+          }
+        },
       ),
     );
-
-    if (confirmed != true) return;
-
-    try {
-      final res = await ApiService.deleteBonds(
-        accessToken: widget.accessToken,
-        denomination: widget.denomination,
-        bonds: [bondNumber],
-      );
-
-      if (res.statusCode == 200) {
-        setState(() {
-          _bonds.remove(bondNumber);
-        });
-        widget.onBondsUpdated();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bond $bondNumber deleted successfully.')),
-        );
-      } else {
-        final data = jsonDecode(res.body);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['detail'] ?? 'Failed to delete bond.')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Connection error: $e')));
-    }
   }
 
   void _showWinningDetails(
     String bondNumber,
     List<Map<String, dynamic>> winnings,
   ) {
-    showModalBottomSheet(
+    showAppNotificationSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.emoji_events, color: Colors.amber, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Winning Bond: $bondNumber',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...winnings.map(
-              (w) => Card(
-                elevation: 1,
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Prize: ${w['prize_name']} (Position ${w['prize_position']})',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF012F21),
-                        ),
+      title: 'Winning Bond: $bondNumber',
+      message: 'Congratulations! This bond has won official prize draws.',
+      type: AppNotificationType.success,
+      dismissLabel: 'Close',
+      customAction: Column(
+        children: winnings
+            .map(
+              (w) => AppCard(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                color: const Color(0xFFD1FAE5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Prize: ${w['prize_name']} (Position ${w['prize_position']})',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
                       ),
-                      const SizedBox(height: 6),
-                      Text('Amount: Rs. ${w['prize_amount']}'),
-                      const SizedBox(height: 4),
-                      Text('Draw Date: ${w['draw_date']}'),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Amount: Rs. ${w['prize_amount']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Draw Date: ${w['draw_date']}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ),
-          ],
-        ),
+            )
+            .toList(),
       ),
     );
   }
@@ -184,15 +178,21 @@ class _BondlistDetailScreenState extends State<BondlistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Rs. ${widget.denomination} Bond List'),
-        backgroundColor: const Color(0xFF012F21),
-        foregroundColor: Colors.white,
+        title: Text(
+          'Rs. ${widget.denomination} Bond List',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: _isLoadingWinnings
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingIndicator(message: 'Checking prize draw results...')
           : _bonds.isEmpty
-          ? const Center(child: Text('No bonds in this list.'))
+          ? const AppEmptyState(
+              icon: Icons.subtitles_off_outlined,
+              title: 'No Bonds in List',
+              message: 'All bonds in this denomination list have been removed.',
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _bonds.length,
@@ -200,47 +200,89 @@ class _BondlistDetailScreenState extends State<BondlistDetailScreen> {
                 final bond = _bonds[index];
                 final isWinner = _winningsMap.containsKey(bond);
                 final winnings = _winningsMap[bond] ?? [];
+                final isDeleting = _deletingBondNumber == bond;
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isWinner
-                          ? Colors.green.shade700
-                          : const Color(0xFF012F21),
-                      child: Icon(
-                        isWinner
-                            ? Icons.emoji_events
-                            : Icons.confirmation_number,
-                        color: Colors.white,
-                      ),
-                    ),
-                    title: Text(
-                      bond,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: isWinner
-                            ? Colors.green.shade800
-                            : Colors.black87,
-                      ),
-                    ),
-                    subtitle: Text(
-                      isWinner ? '🎉 Winner! Tap for details' : 'Not drawn yet',
-                      style: TextStyle(
-                        color: isWinner ? Colors.green.shade700 : Colors.grey,
-                        fontWeight: isWinner
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => _deleteBond(bond),
-                    ),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(12),
                     onTap: isWinner
                         ? () => _showWinningDetails(bond, winnings)
                         : null,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: isWinner
+                                ? AppColors.success
+                                : AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isWinner
+                                ? Icons.emoji_events
+                                : Icons.confirmation_number,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                bond,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: isWinner
+                                      ? AppColors.success
+                                      : Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isWinner
+                                    ? '🎉 Winner! Tap for details'
+                                    : 'Not drawn yet',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isWinner
+                                      ? AppColors.success
+                                      : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  fontWeight: isWinner
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isDeleting)
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.error,
+                              ),
+                            ),
+                          )
+                        else
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.error,
+                            ),
+                            onPressed: () => _deleteBond(bond),
+                          ),
+                      ],
+                    ),
                   ),
                 );
               },

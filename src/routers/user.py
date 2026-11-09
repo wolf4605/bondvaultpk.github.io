@@ -96,6 +96,31 @@ async def get_user_bond_winnings(
     return responses.PrizeBondSearchResponse(results=results, total=len(results))
 
 
+@router.get(
+    path="/drawlists/schedule",
+    response_model=list[responses.UpcomingDrawInfo],
+    summary="Fetch upcoming draw schedules",
+)
+async def get_user_upcoming_draws(
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+) -> list[responses.UpcomingDrawInfo]:
+    """Return upcoming draw schedules to the authenticated user."""
+    records = await DB.fetch(
+        """
+        SELECT "draw_date", "denomination", "created_at", COALESCE("location", 'State Bank of Pakistan (SBP)') AS "location"
+        FROM "upcoming_draws"
+        WHERE "draw_date" >= (
+            CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Karachi'
+        )::date
+        ORDER BY "draw_date" ASC, "denomination" ASC
+        """
+    )
+    return [
+        responses.UpcomingDrawInfo(**record)
+        for record in records
+    ]
+
+
 @router.patch(
     path="",
     summary="Update User Info",
@@ -175,6 +200,29 @@ async def create_market_listing(
     if record is None:
         raise RuntimeError("The marketplace listing could not be created.")
     return responses.MarketListingInfo(**record)
+
+
+@router.get(
+    path="/market/listings",
+    response_model=list[responses.MarketListingInfo],
+    summary="Fetch all marketplace listings",
+)
+async def fetch_market_listings(
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+) -> list[responses.MarketListingInfo]:
+    """Return all marketplace listings without disclosing owner contact details."""
+    records = await DB.fetch(
+        """
+        SELECT "id", "posted_by", "title", "description", "price",
+               "category", "created_at"
+        FROM "market"
+        ORDER BY "created_at" DESC, "id"
+        """
+    )
+    return [
+        responses.MarketListingInfo.model_validate(dict(record))
+        for record in records
+    ]
 
 
 @router.patch(

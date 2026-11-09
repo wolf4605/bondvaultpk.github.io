@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../../config/app_theme.dart';
 import '../../../utils/api_service.dart';
 import '../../../utils/app_utils.dart';
+import '../../../widgets/widgets.dart';
 import '../bond_ocr_parser.dart';
 import '../bondlist_detail_screen.dart';
 import '../camera_scan_screen.dart';
@@ -111,19 +113,10 @@ class _MyBondsTabState extends State<MyBondsTab> {
   @override
   Widget build(BuildContext context) {
     if (!widget.isVerified) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'Feature Locked: Account is unverified.',
-            style: TextStyle(
-              color: Colors.orange,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+      return const AppEmptyState(
+        icon: Icons.lock_outline,
+        title: 'Feature Locked',
+        message: 'Your account is currently under verification review. My Bonds feature will unlock automatically once approved.',
       );
     }
 
@@ -139,52 +132,32 @@ class _MyBondsTabState extends State<MyBondsTab> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingIndicator(message: 'Fetching bond holdings...')
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'My Bonds',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: Theme.of(context).colorScheme.primary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
+                  const AppSectionHeader(
+                    title: 'My Bonds Portfolio',
+                    tagline: 'OVERVIEW',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Hero Portfolio Card
-                  Container(
+                  AppCard(
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF0F5132),
-                          Color(0xFF0A3622),
-                          Color(0xFF022C22),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF022C22)
-                              .withValues(alpha: 0.25),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
+                    borderRadius: 24,
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF0F5132),
+                        Color(0xFF0A3622),
+                        Color(0xFF022C22),
                       ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    elevation: 4,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -217,41 +190,10 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                 ),
                               ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade700.withValues(
-                                  alpha: 0.4,
-                                ),
-                                border: Border.all(
-                                  color: Colors.greenAccent.withValues(
-                                    alpha: 0.6,
-                                  ),
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.verified,
-                                    size: 12,
-                                    color: Colors.greenAccent,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '$totalBonds Bonds Held',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            AppBadge(
+                              label: '$totalBonds Bonds Held',
+                              type: AppBadgeType.success,
+                              icon: Icons.verified,
                             ),
                           ],
                         ),
@@ -308,39 +250,11 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                   ),
                                 ],
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade500.withValues(
-                                    alpha: 0.25,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Colors.amber.shade300,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.emoji_events,
-                                      size: 14,
-                                      color: Colors.amberAccent,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Rs. ${formatNumber(_totalWonAmount)} Won Total',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.amberAccent,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              AppBadge(
+                                label:
+                                    'Rs. ${formatNumber(_totalWonAmount)} Won Total',
+                                type: AppBadgeType.warning,
+                                icon: Icons.emoji_events,
                               ),
                             ],
                           ),
@@ -350,13 +264,18 @@ class _MyBondsTabState extends State<MyBondsTab> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Denomination Breakdown Cards (without golden highlighting, showing win count)
+                  // Denomination Breakdown Section
+                  const AppSectionHeader(
+                    title: 'Bond Denominations',
+                    tagline: 'HOLDINGS',
+                  ),
+                  const SizedBox(height: 8),
+
                   _bondlists.isEmpty
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24.0),
-                            child: Text('No bond lists added yet.'),
-                          ),
+                      ? const AppEmptyState(
+                          icon: Icons.subtitles_off_outlined,
+                          title: 'No Bonds Added Yet',
+                          message: 'Tap the + button below to scan or add your prize bond numbers to start tracking.',
                         )
                       : ListView.builder(
                           shrinkWrap: true,
@@ -372,7 +291,6 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                 ? '${(denomination / 1000).toStringAsFixed(denomination % 1000 == 0 ? 0 : 1)}k'
                                 : '$denomination';
 
-                            // Find winnings for this denomination
                             final denomWins = _winnings
                                 .where(
                                   (w) =>
@@ -390,24 +308,10 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                       0),
                             );
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Theme.of(context).dividerColor,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: InkWell(
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: AppCard(
+                                padding: const EdgeInsets.all(16),
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -428,7 +332,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                       width: 48,
                                       height: 48,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF003527),
+                                        color: AppColors.primary,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       alignment: Alignment.center,
@@ -461,41 +365,12 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                               ),
                                               if (winnerCount > 0) ...[
                                                 const SizedBox(width: 8),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        Colors.amber.shade500,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.emoji_events,
-                                                        size: 10,
-                                                        color: Colors.white,
-                                                      ),
-                                                      const SizedBox(width: 2),
-                                                      Text(
-                                                        '$winnerCount Winner${winnerCount > 1 ? 's' : ''}',
-                                                        style: const TextStyle(
-                                                          fontSize: 9,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: Colors.white,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
+                                                AppBadge(
+                                                  label:
+                                                      '$winnerCount Winner${winnerCount > 1 ? 's' : ''}',
+                                                  type: AppBadgeType.warning,
+                                                  icon: Icons.emoji_events,
+                                                  isSmall: true,
                                                 ),
                                               ],
                                             ],
@@ -541,7 +416,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
           if (_isFabExpanded) ...[
             FloatingActionButton.extended(
               heroTag: 'scan_bond',
-              backgroundColor: const Color(0xFF003527),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               onPressed: () => _openCameraScanner(context),
               icon: const Icon(Icons.qr_code_scanner, size: 18),
@@ -550,7 +425,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
             const SizedBox(height: 12),
             FloatingActionButton.extended(
               heroTag: 'add_bond',
-              backgroundColor: const Color(0xFF003527),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               onPressed: () => _showAddBondsDialog(context),
               icon: const Icon(Icons.add_box_outlined, size: 18),
@@ -559,7 +434,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
             const SizedBox(height: 12),
             FloatingActionButton.extended(
               heroTag: 'add_range',
-              backgroundColor: const Color(0xFF003527),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               onPressed: () => _showAddBondsDialog(context),
               icon: const Icon(Icons.format_list_numbered, size: 18),
@@ -569,7 +444,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
           ],
           FloatingActionButton(
             shape: const CircleBorder(),
-            backgroundColor: const Color(0xFF003527),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             onPressed: () => setState(() => _isFabExpanded = !_isFabExpanded),
             child: Icon(_isFabExpanded ? Icons.close : Icons.add),
@@ -625,17 +500,31 @@ class _AddBondsDialogState extends State<_AddBondsDialog> {
         widget.onBondsAdded();
         if (!mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bonds added successfully!')),
+        showAppNotificationSheet(
+          context: context,
+          title: 'Bonds Registered',
+          message: 'Your prize bonds have been added to your portfolio successfully!',
+          type: AppNotificationType.success,
         );
       } else {
         final data = jsonDecode(res.body);
+        final msg = data['detail'] ?? 'Failed to add bonds.';
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['detail'] ?? 'Failed to add bonds.')),
+        showAppNotificationSheet(
+          context: context,
+          title: 'Error Adding Bonds',
+          message: msg,
+          type: AppNotificationType.error,
         );
       }
     } catch (_) {
+      if (!mounted) return;
+      showAppNotificationSheet(
+        context: context,
+        title: 'Connection Error',
+        message: 'Could not connect to server to add bonds.',
+        type: AppNotificationType.error,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -654,7 +543,7 @@ class _AddBondsDialogState extends State<_AddBondsDialog> {
               onPressed: (index) => setState(() => _isRange = index == 0),
               color: Theme.of(context).colorScheme.onSurface,
               selectedColor: Theme.of(context).colorScheme.onPrimary,
-              fillColor: Theme.of(context).colorScheme.primary,
+              fillColor: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
               children: const [
                 Padding(
@@ -683,32 +572,23 @@ class _AddBondsDialogState extends State<_AddBondsDialog> {
             ),
             const SizedBox(height: 16),
             if (_isRange) ...[
-              TextField(
+              AppTextField(
                 controller: _startNumController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Start Number (e.g. 000001)',
-                  border: OutlineInputBorder(),
-                ),
+                labelText: 'Start Number (e.g. 000001)',
               ),
               const SizedBox(height: 16),
-              TextField(
+              AppTextField(
                 controller: _endNumController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'End Number (e.g. 000100)',
-                  border: OutlineInputBorder(),
-                ),
+                labelText: 'End Number (e.g. 000100)',
               ),
             ] else ...[
-              TextField(
+              AppTextField(
                 controller: _numbersController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Bond Numbers (comma separated)',
-                  hintText: '123456, 654321, 789012',
-                  border: OutlineInputBorder(),
-                ),
+                labelText: 'Bond Numbers (comma separated)',
+                hintText: '123456, 654321, 789012',
               ),
             ],
           ],
@@ -719,18 +599,11 @@ class _AddBondsDialogState extends State<_AddBondsDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Add Bonds'),
+        AppButton(
+          label: 'Add Bonds',
+          isLoading: _isLoading,
+          fullWidth: false,
+          onPressed: _submit,
         ),
       ],
     );

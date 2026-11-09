@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../utils/app_utils.dart';
+import '../../../config/app_theme.dart';
+import '../../../config/responsive.dart';
+import '../../../utils/api_service.dart';
+import '../../../widgets/widgets.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   final String fullName;
   final bool isVerified;
   final String accessToken;
@@ -25,6 +28,34 @@ class HomeTab extends StatelessWidget {
   });
 
   @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  Map<String, dynamic>? _nextDraw;
+  bool _isLoadingDraw = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNextDraw();
+  }
+
+  Future<void> _fetchNextDraw() async {
+    try {
+      final list = await ApiService.fetchDrawSchedule(widget.accessToken);
+      if (list != null && list.isNotEmpty && mounted) {
+        setState(() {
+          _nextDraw = Map<String, dynamic>.from(list.first);
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoadingDraw = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -40,35 +71,34 @@ class HomeTab extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.2,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: isDark
+                  ? const Color(0xFF80BEA6)
+                  : AppColors.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 2),
           Text(
-            'Welcome back, $fullName',
+            'Welcome back, ${widget.fullName}',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.primary,
+              color: isDark ? Colors.white : AppColors.primary,
               letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 16),
 
           // Verification Notice Banner
-          if (!isVerified) ...[
-            Container(
+          if (!widget.isVerified) ...[
+            AppCard(
+              color: isDark
+                  ? Colors.amber.shade900.withValues(alpha: 0.2)
+                  : Colors.amber.shade50,
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
+              border: Border.all(
                 color: isDark
-                    ? Colors.amber.shade900.withValues(alpha: 0.2)
-                    : Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.amber.shade800.withValues(alpha: 0.4)
-                      : Colors.amber.shade200,
-                ),
+                    ? Colors.amber.shade800.withValues(alpha: 0.4)
+                    : Colors.amber.shade200,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,25 +129,10 @@ class HomeTab extends StatelessWidget {
                                     : const Color(0xFF78350F),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.shade200.withValues(
-                                  alpha: 0.6,
-                                ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'ETA 24-48 hrs',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF78350F),
-                                ),
-                              ),
+                            AppBadge(
+                              label: 'ETA 24-48 hrs',
+                              type: AppBadgeType.warning,
+                              isSmall: true,
                             ),
                           ],
                         ),
@@ -142,27 +157,15 @@ class HomeTab extends StatelessWidget {
           ],
 
           // Hero Portfolio Card
-          Container(
+          AppCard(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF0F5132),
-                  Color(0xFF0A3622),
-                  Color(0xFF022C22),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF022C22).withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+            borderRadius: 24,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0F5132), Color(0xFF0A3622), Color(0xFF022C22)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            elevation: 4,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -178,7 +181,7 @@ class HomeTab extends StatelessWidget {
                         color: Color(0xFFD1FAE5),
                       ),
                     ),
-                    buildVerifiedBadge(isVerified),
+                    AppBadge.verified(isVerified: widget.isVerified),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -195,7 +198,9 @@ class HomeTab extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      isLoading ? '...' : formatNumber(totalAssets),
+                      widget.isLoading
+                          ? '...'
+                          : widget.formatNumber(widget.totalAssets),
                       style: const TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.w900,
@@ -211,193 +216,241 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Explore Services Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'EXPLORE SERVICES',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'What would you like to do?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.primary,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ],
-              ),
-              const Icon(
-                Icons.auto_awesome,
-                color: Color(0xFFFE932C),
-                size: 20,
-              ),
-            ],
+          AppSectionHeader(
+            title: 'What would you like to do?',
+            tagline: 'EXPLORE SERVICES',
+            action: const Icon(
+              Icons.auto_awesome,
+              color: AppColors.secondaryContainer,
+              size: 20,
+            ),
           ),
           const SizedBox(height: 12),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: Responsive.isMobile(context)
+                ? (MediaQuery.orientationOf(context) == Orientation.landscape
+                      ? 3
+                      : 2)
+                : Responsive.gridColumns(
+                    context,
+                    mobile: 2,
+                    tablet: 3,
+                    desktop: 4,
+                  ),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 2.2,
+            childAspectRatio:
+                MediaQuery.orientationOf(context) == Orientation.landscape
+                ? 3.0
+                : 2.2,
             children: [
               _buildExploreCard(
                 context,
                 'Search Bonds',
                 'Check bond status',
                 Icons.search,
-                const Color(0xFF10B981),
+                AppColors.success,
                 true,
-                () => onNavigate(1),
+                () => widget.onNavigate(1),
               ),
               _buildExploreCard(
                 context,
                 'My Bonds',
-                'Manage your po...',
+                'Manage your portfolio',
                 Icons.account_balance_wallet_outlined,
                 const Color(0xFF3B82F6),
-                isVerified,
-                () => onNavigate(2),
+                widget.isVerified,
+                () => widget.onNavigate(2),
               ),
               _buildExploreCard(
                 context,
                 'Draws',
-                'Latest draw r...',
+                'Latest draw results',
                 Icons.military_tech_outlined,
-                const Color(0xFFF59E0B),
-                isVerified,
-                () => onNavigate(4),
+                AppColors.warning,
+                widget.isVerified,
+                () => widget.onNavigate(4),
               ),
               _buildExploreCard(
                 context,
                 'Market',
-                'Current bon...',
+                'Current bond prices',
                 Icons.storefront_outlined,
                 const Color(0xFF8B5CF6),
-                isVerified,
-                () => onNavigate(3),
+                widget.isVerified,
+                () => widget.onNavigate(3),
               ),
               _buildExploreCard(
                 context,
-                'Draw Sch...',
-                'Upcoming dr...',
+                'Draw Schedule',
+                'Upcoming draws',
                 Icons.calendar_today_outlined,
                 const Color(0xFFEC4899),
-                isVerified,
-                () => onNavigate(4),
+                widget.isVerified,
+                () => widget.onNavigate(4),
               ),
               _buildExploreCard(
                 context,
                 'Reports',
-                'Portfolio ins...',
+                'Portfolio insights',
                 Icons.description_outlined,
                 const Color(0xFF14B8A6),
-                isVerified,
-                () => onNavigate(2),
+                widget.isVerified,
+                () => widget.onNavigate(2),
               ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Upcoming Draw Notification Banner
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.amber.shade900.withValues(alpha: 0.15)
-                  : Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade500.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.access_time,
-                    color: Colors.amber.shade800,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          // Dynamic Upcoming Draw Banner
+          if (_isLoadingDraw)
+            const SizedBox.shrink()
+          else if (_nextDraw != null) ...[
+            Builder(
+              builder: (context) {
+                final rawLocation = (_nextDraw!['location'] ??
+                        _nextDraw!['city'] ??
+                        _nextDraw!['draw_location'] ??
+                        '')
+                    .toString()
+                    .trim();
+                final drawLocation = rawLocation.isNotEmpty
+                    ? rawLocation
+                    : 'SBP';
+
+                return AppCard(
+                  padding: const EdgeInsets.all(14),
+                  color: isDark
+                      ? Colors.amber.shade900.withValues(alpha: 0.15)
+                      : Colors.amber.shade50,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade200.withValues(
-                                alpha: 0.6,
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'NEXT DRAW',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF78350F),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '15 Nov 2024',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Rs. 1,500 Draw • Rawalpindi',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade500.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Icon(
+                          Icons.access_time,
+                          color: Colors.amber.shade800,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade200.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'NEXT DRAW',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF78350F),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _nextDraw!['draw_date']?.toString() ??
+                                      _nextDraw!['date']?.toString() ??
+                                      'Upcoming',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Rs. ${_nextDraw!['denomination'] ?? _nextDraw!['bond_type'] ?? '1500'} Draw • $drawLocation',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      AppBadge(
+                        label: 'Upcoming',
+                        type: AppBadgeType.warning,
+                        isSmall: true,
                       ),
                     ],
                   ),
-                ),
-                const Text(
-                  'In 3 days',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFB45309),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
+          ] else
+            AppCard(
+              padding: const EdgeInsets.all(14),
+              color: isDark
+                  ? Colors.amber.shade900.withValues(alpha: 0.15)
+                  : Colors.amber.shade50,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade500.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.event_busy,
+                      color: Colors.amber.shade800,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No Upcoming Draws Found',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Check back later for official SBP gazette schedules.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -412,87 +465,65 @@ class HomeTab extends StatelessWidget {
     bool isAllowed,
     VoidCallback onTap,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return InkWell(
+    return AppCard(
+      padding: const EdgeInsets.all(12),
       onTap: () {
         if (!isAllowed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Feature locked: $title requires admin verification.',
-              ),
-              backgroundColor: Colors.orange,
-            ),
+          showAppToast(
+            context,
+            'Feature locked: $title requires account verification.',
+            type: AppNotificationType.warning,
           );
           return;
         }
         onTap();
       },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerColor),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            Icon(
-              Icons.chevron_right,
-              size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
+          ),
+          Icon(
+            Icons.chevron_right,
+            size: 16,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ],
       ),
     );
   }

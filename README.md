@@ -67,5 +67,46 @@ The backend also includes these public endpoints:
   to reset the password. Passwords must be at least 12 characters. Successful
   recovery revokes all active sessions for that user.
 
+Upcoming draw schedules require authentication:
+
+- `GET /user/drawlists/schedule` is available to authenticated users.
+- `GET /drawlists/schedule` is available to authenticated administrators.
+- `POST /drawlists/schedule` is administrator-only and accepts
+  `{"denomination":1500,"draw_date":"2026-12-15"}` to add a future schedule
+  entry.
+- `DELETE /drawlists/schedule/{denomination}/{draw_date}` is administrator-only
+  and removes the matching entry, for example
+  `/drawlists/schedule/1500/2026-12-15`.
+
+Authenticated users can browse imported draw results:
+
+- `GET /user/drawlists` lists available draw lists with their dates,
+  denominations, and winner counts.
+- `GET /user/drawlists/{draw_id}/bonds` returns the winning bond numbers and
+  prize details for one draw.
+- `GET /user/drawlists/{draw_id}/pdf` downloads that draw's results as a PDF.
+
 Redis must be available for verification codes and rate limits. SMTP delivery
 errors are returned as API errors; codes whose delivery fails are discarded.
+
+API rate limits are enforced in Redis so they are shared across backend
+instances. IP limits use fixed one-minute counters unless noted below:
+
+| Scope | Limit |
+| --- | --- |
+| All API traffic | 300 requests per IP per minute |
+| User/admin login | 10 requests per IP per 15 minutes |
+| Failed logins | 10 per username/email and role per 15 minutes |
+| Registration | 10 requests per IP per hour |
+| Email verification and password-recovery code requests | 5 per IP per hour |
+| Email-code verification and recovery completion | 10 requests per IP per minute |
+| Username/email/contact availability checks | 30 requests per IP per minute |
+| Public draw-result searches | 120 requests per IP per minute |
+| Other API writes | 60 requests per IP per minute |
+| Authenticated user reads/writes | 120 reads and 30 writes per account per minute |
+| Authenticated admin reads/writes | 60 reads and 20 writes per account per minute |
+
+Failed-login limits count incorrect credentials only, so they do not prevent a
+valid sign-in. Exceeding any limit returns HTTP 429 with a `Retry-After` header.
+The backend uses the ASGI client's peer address for IP limits; configure the
+ASGI server to trust forwarded headers only from known reverse proxies.

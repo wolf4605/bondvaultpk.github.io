@@ -47,6 +47,38 @@ class ApiService {
     return null;
   }
 
+  /// Fetch user upcoming draw schedule from GET /user/drawlists/schedule
+  static Future<List<dynamic>?> fetchDrawSchedule([String? accessToken]) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.drawScheduleEndpoint}',
+      );
+      final headers = <String, String>{};
+      if (accessToken != null && accessToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $accessToken';
+      }
+      final res = await http.get(uri, headers: headers);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) {
+          return data;
+        } else if (data is Map<String, dynamic>) {
+          return data['schedules'] ??
+              data['draws'] ??
+              data['results'] ??
+              data['upcoming_draws'] ??
+              data['data'] ??
+              [];
+        }
+      } else if (res.statusCode >= 500 || res.statusCode == 503) {
+        showServiceUnavailable();
+      }
+    } catch (_) {
+      showServiceUnavailable();
+    }
+    return null;
+  }
+
   /// Add bonds by range.
   static Future<http.Response> addBondsRange({
     required String accessToken,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../config/app_theme.dart';
 import '../../utils/api_service.dart';
 import '../../utils/app_utils.dart';
+import '../../widgets/widgets.dart';
 import '../login_screen.dart';
 import 'tabs/draw_schedules_tab.dart';
 import 'tabs/home_tab.dart';
@@ -82,9 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       applicationName: 'BondVault PK',
       applicationVersion: '1.0.0',
-      applicationIcon: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: const Icon(Icons.security, color: Colors.white),
+      applicationIcon: const CircleAvatar(
+        backgroundColor: AppColors.primary,
+        child: Icon(Icons.security, color: Colors.white),
       ),
       children: const [
         SizedBox(height: 12),
@@ -98,13 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void handleTabChange(int index) {
     final isVerified = widget.userInfo['is_verified'] == true;
     if (!isVerified && index > 1 && index != 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Feature locked: Unverified users can only access Home and Search. Please wait for admin verification.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
+      showAppToast(
+        context,
+        'Feature locked: Unverified users can only access Home and Search.',
+        type: AppNotificationType.warning,
       );
       return;
     }
@@ -141,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onPortfolioUpdated: _fetchPortfolioData,
       ),
       MarketplaceTab(isVerified: isVerified),
-      const DrawSchedulesTab(),
+      DrawSchedulesTab(accessToken: widget.accessToken),
       SettingsTab(
         email: email,
         fullName: fullName,
@@ -185,13 +184,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 8),
             Row(
-              children: [
+              children: const [
                 Text(
                   'BondVault ',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: AppColors.primary,
                   ),
                 ),
                 Text(
@@ -199,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.secondary,
+                    color: AppColors.secondaryContainer,
                   ),
                 ),
               ],
@@ -213,11 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No unread notifications'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  showAppToast(
+                    context,
+                    'No unread notifications',
+                    type: AppNotificationType.info,
                   );
                 },
               ),
@@ -228,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
+                    color: AppColors.success,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -248,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF003527), Color(0xFF064E3B)],
+                  colors: [AppColors.primary, AppColors.primaryContainer],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -273,8 +271,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 10),
                       Row(
-                        children: [
-                          const Text(
+                        children: const [
+                          Text(
                             'BondVault ',
                             style: TextStyle(
                               fontSize: 18,
@@ -282,12 +280,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.white,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'PK',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFE932C),
+                              color: AppColors.secondaryContainer,
                             ),
                           ),
                         ],
@@ -306,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      buildVerifiedBadge(isVerified),
+                      AppBadge.verified(isVerified: isVerified),
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -314,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     '@$username',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF80BEA6),
+                      color: AppColors.onPrimaryContainer,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -344,14 +342,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.amber.shade500.withValues(
+                                color: AppColors.secondaryContainer.withValues(
                                   alpha: 0.2,
                                 ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
                                 Icons.account_balance_wallet,
-                                color: Color(0xFFFE932C),
+                                color: AppColors.secondaryContainer,
                                 size: 16,
                               ),
                             ),
@@ -490,30 +488,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFBA1A1A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
+                child: AppButton(
+                  label: 'Log Out',
+                  variant: AppButtonVariant.danger,
+                  icon: const Icon(Icons.logout, size: 18),
                   onPressed: () => _logout(context),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.logout, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Log Out',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),
@@ -594,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFE932C),
+                  color: AppColors.secondaryContainer,
                   shape: BoxShape.circle,
                 ),
               )

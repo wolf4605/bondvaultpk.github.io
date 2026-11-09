@@ -117,6 +117,35 @@ class UpcomingDrawInfo(BaseModel):
     draw_date: date
     denomination: PrizeBondDenominations
     created_at: datetime
+    location: str
+
+
+class DrawListSummary(BaseModel):
+    """Metadata and winner count for an imported prize-bond draw."""
+
+    draw_id: UUID
+    draw_date: date
+    denomination: PrizeBondDenominations
+    winner_count: int = Field(ge=0)
+
+
+class DrawListWinner(BaseModel):
+    """A winning bond and its prize information in one draw."""
+
+    bond_number: str
+    prize_position: Literal[1, 2, 3]
+    prize_name: Literal["1st Prize", "2nd Prize", "3rd Prize"]
+    prize_amount: int = Field(gt=0)
+
+
+class DrawListWinnersResponse(BaseModel):
+    """One draw's metadata and all winning bonds."""
+
+    draw_id: UUID
+    draw_date: date
+    denomination: PrizeBondDenominations
+    winners: list[DrawListWinner]
+    total: int = Field(ge=0)
 
 
 class EmailVerificationResponse(BaseResponse):

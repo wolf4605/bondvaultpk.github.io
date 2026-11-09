@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/app_utils.dart';
+import '../config/app_theme.dart';
+import '../widgets/widgets.dart';
 import 'login_screen.dart';
 import 'user_screens/home_screen.dart';
 
@@ -23,13 +24,11 @@ class PinUnlockScreen extends StatefulWidget {
 
 class _PinUnlockScreenState extends State<PinUnlockScreen> {
   String _enteredPin = '';
-  String? _errorMessage;
 
   void _onNumberPressed(String digit) {
     if (_enteredPin.length < 4) {
       setState(() {
         _enteredPin += digit;
-        _errorMessage = null;
       });
       if (_enteredPin.length == 4) {
         _verifyPin();
@@ -41,13 +40,17 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
     if (_enteredPin.isNotEmpty) {
       setState(() {
         _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
-        _errorMessage = null;
       });
     }
   }
 
   void _verifyPin() {
     if (_enteredPin == widget.correctPin) {
+      showAppToast(
+        context,
+        'Vault unlocked',
+        type: AppNotificationType.success,
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -61,11 +64,11 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       setState(() {
         _enteredPin = '';
       });
-      showErrorBottomSheet(
+      showAppNotificationSheet(
         context: context,
         title: 'Authentication Error',
         message: 'Incorrect MPIN. Please try again.',
-        onDismiss: () {},
+        type: AppNotificationType.error,
       );
     }
   }
@@ -106,8 +109,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF003527)
-                                .withValues(alpha: 0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -122,7 +124,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                       width: 32,
                       height: 32,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF003527),
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -138,22 +140,22 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                 // Title
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
+                  children: const [
+                    Text(
                       'BondVault ',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF003527),
+                        color: AppColors.primary,
                         letterSpacing: -0.5,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'PK',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFFD97706),
+                        color: AppColors.warning,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -167,7 +169,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF404944),
+                    color: AppColors.onSurfaceVariant,
                     height: 1.4,
                   ),
                 ),
@@ -184,7 +186,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
                         color: isFilled
-                            ? const Color(0xFF003527)
+                            ? AppColors.primary
                             : const Color(0xFFE2E7FF),
                         shape: BoxShape.circle,
                       ),
@@ -192,17 +194,6 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                   }),
                 ),
 
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 40),
 
                 // Number Pad
@@ -240,7 +231,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          const SizedBox(width: 72, height: 72), // Empty space
+                          const SizedBox(width: 72, height: 72),
                           _buildNumButton('0'),
                           _buildDeleteButton(),
                         ],
@@ -258,7 +249,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF003527),
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -280,7 +271,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                             Icon(
                               Icons.lock_outline,
                               size: 14,
-                              color: Color(0xFF131B2E),
+                              color: AppColors.onSurface,
                             ),
                             SizedBox(width: 6),
                             Text(
@@ -288,7 +279,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF131B2E),
+                                color: AppColors.onSurface,
                               ),
                             ),
                           ],
@@ -314,7 +305,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       height: 72,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF003527),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           shape: const CircleBorder(),
           elevation: 2,
@@ -338,7 +329,7 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
       height: 72,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF003527),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           shape: const CircleBorder(),
           elevation: 2,

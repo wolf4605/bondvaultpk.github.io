@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/app_theme.dart';
-import '../../../utils/app_utils.dart';
+import '../../../widgets/widgets.dart';
 
 class SettingsTab extends StatefulWidget {
   final String email;
@@ -25,6 +25,7 @@ class SettingsTab extends StatefulWidget {
 class _SettingsTabState extends State<SettingsTab> {
   bool _hasAppPin = false;
   String _selectedLanguage = 'English';
+  int _toastDuration = 3;
 
   @override
   void initState() {
@@ -32,16 +33,16 @@ class _SettingsTabState extends State<SettingsTab> {
     _loadPreferences();
   }
 
-  Future<void> _loadPinStatus() => _loadPreferences();
-
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     final pin = prefs.getString('app_pin');
     final lang = prefs.getString('app_language') ?? 'English';
+    final duration = prefs.getInt('toast_duration_seconds') ?? 3;
     if (mounted) {
       setState(() {
         _hasAppPin = pin != null && pin.isNotEmpty;
         _selectedLanguage = lang;
+        _toastDuration = duration;
       });
     }
   }
@@ -71,8 +72,52 @@ class _SettingsTabState extends State<SettingsTab> {
         _selectedLanguage = lang;
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Language set to $lang')));
+      showAppToast(
+        context,
+        'Language set to $lang',
+        type: AppNotificationType.success,
+      );
+    }
+  }
+
+  Future<void> _showToastDurationDialog() async {
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Toast Notification Duration'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 2),
+            child: const Text('2 seconds (Fast)'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 3),
+            child: const Text('3 seconds (Normal)'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 5),
+            child: const Text('5 seconds (Extended)'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 8),
+            child: const Text('8 seconds (Long)'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('toast_duration_seconds', selected);
+      setState(() {
+        _toastDuration = selected;
+      });
+      if (!mounted) return;
+      showAppToast(
+        context,
+        'Toast display duration set to $selected seconds',
+        type: AppNotificationType.success,
+      );
     }
   }
 
@@ -102,22 +147,18 @@ class _SettingsTabState extends State<SettingsTab> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
+                AppTextField(
                   controller: pinController,
                   obscureText: obscure,
                   keyboardType: TextInputType.number,
                   maxLength: 4,
-                  decoration: InputDecoration(
-                    labelText: 'New MPIN (4 digits)',
-                    prefixIcon: const Icon(Icons.dialpad),
-                    border: const OutlineInputBorder(),
-                    counterText: '',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscure ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () => setDialogState(() => obscure = !obscure),
+                  labelText: 'New MPIN (4 digits)',
+                  prefixIcon: const Icon(Icons.dialpad),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscure ? Icons.visibility : Icons.visibility_off,
                     ),
+                    onPressed: () => setDialogState(() => obscure = !obscure),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'MPIN is required';
@@ -128,17 +169,13 @@ class _SettingsTabState extends State<SettingsTab> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                AppTextField(
                   controller: confirmPinController,
                   obscureText: obscure,
                   keyboardType: TextInputType.number,
                   maxLength: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm MPIN',
-                    prefixIcon: Icon(Icons.check_circle_outline),
-                    border: OutlineInputBorder(),
-                    counterText: '',
-                  ),
+                  labelText: 'Confirm MPIN',
+                  prefixIcon: const Icon(Icons.check_circle_outline),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Confirm MPIN';
                     if (v != pinController.text) return 'MPINs do not match';
@@ -153,33 +190,27 @@ class _SettingsTabState extends State<SettingsTab> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              ),
+            AppButton(
+              label: isEdit ? 'Update' : 'Save',
+              fullWidth: false,
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('app_pin', pinController.text.trim());
                   if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
-                  await _loadPinStatus();
+                  await _loadPreferences();
                   if (!mounted) return;
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isEdit
-                            ? 'MPIN updated successfully.'
-                            : 'MPIN set successfully.',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
+                  showAppToast(
+                    context,
+                    isEdit
+                        ? 'MPIN updated successfully.'
+                        : 'MPIN set successfully.',
+                    type: AppNotificationType.success,
                   );
                 }
               },
-              child: Text(isEdit ? 'Update' : 'Save'),
             ),
           ],
         ),
@@ -200,13 +231,11 @@ class _SettingsTabState extends State<SettingsTab> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
+          AppButton(
+            label: 'Remove',
+            variant: AppButtonVariant.danger,
+            fullWidth: false,
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Remove'),
           ),
         ],
       ),
@@ -215,13 +244,12 @@ class _SettingsTabState extends State<SettingsTab> {
     if (confirmed == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('app_pin');
-      await _loadPinStatus();
+      await _loadPreferences();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('MPIN protection disabled.'),
-          backgroundColor: Colors.orange,
-        ),
+      showAppToast(
+        context,
+        'MPIN protection disabled.',
+        type: AppNotificationType.warning,
       );
     }
   }
@@ -236,16 +264,16 @@ class _SettingsTabState extends State<SettingsTab> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            AppTextField(
               controller: oldPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Current Password'),
+              labelText: 'Current Password',
             ),
             const SizedBox(height: 12),
-            TextField(
+            AppTextField(
               controller: newPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'New Password'),
+              labelText: 'New Password',
             ),
           ],
         ),
@@ -254,18 +282,17 @@ class _SettingsTabState extends State<SettingsTab> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            ),
+          AppButton(
+            label: 'Update',
+            fullWidth: false,
             onPressed: () {
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Password changed successfully.')),
+              showAppToast(
+                context,
+                'Password changed successfully.',
+                type: AppNotificationType.success,
               );
             },
-            child: const Text('Update'),
           ),
         ],
       ),
@@ -273,33 +300,19 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   void _showDeleteAccountDialog() {
-    showDialog(
+    showAppNotificationSheet(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(
-          'Delete Account',
-          style: TextStyle(color: Colors.red),
-        ),
-        content: const Text(
-          'Are you sure you want to permanently close your account? All saved bond series and data will be removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              widget.onLogout();
-            },
-            child: const Text('Delete'),
-          ),
-        ],
+      title: 'Delete Account',
+      message: 'Are you sure you want to permanently close your account? All saved bond series and data will be removed.',
+      type: AppNotificationType.error,
+      dismissLabel: 'Cancel',
+      customAction: AppButton(
+        label: 'Permanently Delete',
+        variant: AppButtonVariant.danger,
+        onPressed: () {
+          Navigator.pop(context);
+          widget.onLogout();
+        },
       ),
     );
   }
@@ -330,32 +343,10 @@ class _SettingsTabState extends State<SettingsTab> {
         padding: const EdgeInsets.all(16.0),
         children: [
           // Section 1: PROFILE
-          Text(
-            'PROFILE',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+          const AppSectionHeader(title: 'Profile Settings', tagline: 'PROFILE'),
           const SizedBox(height: 8),
-          Container(
+          AppCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: isDark
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: const Color(0xFF064E3B).withValues(alpha: 0.06),
-                        blurRadius: 12,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -374,7 +365,7 @@ class _SettingsTabState extends State<SettingsTab> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          buildVerifiedBadge(true),
+                          AppBadge.verified(),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -431,20 +422,18 @@ class _SettingsTabState extends State<SettingsTab> {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.edit,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 18,
-                    ),
+                    icon: const Icon(Icons.edit, color: Colors.white, size: 18),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile edit mode')),
+                      showAppToast(
+                        context,
+                        'Profile edit mode',
+                        type: AppNotificationType.info,
                       );
                     },
                   ),
@@ -455,31 +444,13 @@ class _SettingsTabState extends State<SettingsTab> {
           const SizedBox(height: 24),
 
           // Section 2: SECURITY & ENCRYPTION
-          Text(
-            'SECURITY & ENCRYPTION',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          const AppSectionHeader(
+            title: 'Security & Encryption',
+            tagline: 'SECURITY',
           ),
           const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: isDark
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: const Color(0xFF064E3B).withValues(alpha: 0.06),
-                        blurRadius: 12,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
+          AppCard(
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 Material(
@@ -574,32 +545,14 @@ class _SettingsTabState extends State<SettingsTab> {
           ),
           const SizedBox(height: 24),
 
-          // Section 3: PREFERENCES
-          Text(
-            'PREFERENCES',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          // Section 3: PREFERENCES & NOTIFICATIONS
+          const AppSectionHeader(
+            title: 'App Preferences',
+            tagline: 'PREFERENCES',
           ),
           const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: isDark
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: const Color(0xFF064E3B).withValues(alpha: 0.06),
-                        blurRadius: 12,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
+          AppCard(
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 ValueListenableBuilder<ThemeMode>(
@@ -646,6 +599,35 @@ class _SettingsTabState extends State<SettingsTab> {
                   color: Colors.transparent,
                   child: ListTile(
                     leading: Icon(
+                      Icons.timer_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text(
+                      'Toast Display Duration',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '$_toastDuration seconds on screen',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    onTap: _showToastDurationDialog,
+                  ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
                       Icons.translate,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -676,31 +658,11 @@ class _SettingsTabState extends State<SettingsTab> {
           const SizedBox(height: 32),
 
           // Logout Button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFBA1A1A),
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: widget.onLogout,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.logout, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Logout',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
+          AppButton(
+            label: 'Logout Account',
+            variant: AppButtonVariant.danger,
+            icon: const Icon(Icons.logout, size: 18),
+            onPressed: widget.onLogout,
           ),
           const SizedBox(height: 24),
         ],

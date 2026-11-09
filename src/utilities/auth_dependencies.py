@@ -22,6 +22,7 @@ import jwt
 from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import ValidationError
+from redis.exceptions import RedisError
 
 from ..database import DB
 from ..models.admin_model import AdminInfo
@@ -35,6 +36,13 @@ from .auth_tokens import (
     decode_access_token,
     token_lifetime,
 )
+
+USER_READ_REQUESTS_PER_MINUTE = 120
+USER_WRITE_REQUESTS_PER_MINUTE = 30
+ADMIN_READ_REQUESTS_PER_MINUTE = 60
+ADMIN_WRITE_REQUESTS_PER_MINUTE = 20
+LOGIN_REQUESTS_PER_IDENTIFIER = 10
+LOGIN_WINDOW_SECONDS = 15 * 60
 
 user_oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/auth/login",
@@ -109,6 +117,79 @@ async def revoke_sessions(
     await redis.revoke_account_sessions(subject, role)
 
 
+async def _check_account_rate_limit(
+    request: Request,
+    bucket: str,
+    identifier: str,
+    limit: int,
+    window_seconds: int,
+) -> None:
+    """Apply one Redis-backed rate limit or fail closed if Redis is unavailable."""
+    try:
+        retry_after = await request.app.state.redis_wrapper.check_rate_limit(
+            bucket,
+            identifier,
+            limit,
+            window_seconds,
+        )
+    except (ConnectionError, RedisError, OSError, TimeoutError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The rate-limiting service is temporarily unavailable.",
+        ) from error
+
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
+async def enforce_account_rate_limit(
+    request: Request,
+    subject: str,
+    role: Literal["user", "admin"],
+) -> None:
+    """Apply per-account limits to authenticated reads and writes."""
+    is_write = request.method in {"POST", "PUT", "PATCH", "DELETE"}
+    if role == "admin":
+        limit = (
+            ADMIN_WRITE_REQUESTS_PER_MINUTE
+            if is_write
+            else ADMIN_READ_REQUESTS_PER_MINUTE
+        )
+    else:
+        limit = (
+            USER_WRITE_REQUESTS_PER_MINUTE
+            if is_write
+            else USER_READ_REQUESTS_PER_MINUTE
+        )
+
+    await _check_account_rate_limit(
+        request,
+        f"account:{role}:{'write' if is_write else 'read'}",
+        subject,
+        limit,
+        60,
+    )
+
+
+async def record_failed_login_attempt(
+    request: Request,
+    role: Literal["user", "admin"],
+    identifier: str,
+) -> None:
+    """Limit failed login attempts without locking out valid sign-ins."""
+    await _check_account_rate_limit(
+        request,
+        f"login:{role}",
+        identifier.strip().casefold(),
+        LOGIN_REQUESTS_PER_IDENTIFIER,
+        LOGIN_WINDOW_SECONDS,
+    )
+
+
 async def _refresh_active_session(
     claims: TokenClaims,
     response: Response,
@@ -172,6 +253,7 @@ async def get_current_user(
         response,
         request.app.state.redis_wrapper,
     )
+    await enforce_account_rate_limit(request, str(payload.id), "user")
     return payload
 
 
@@ -208,12 +290,15 @@ async def get_current_admin(
         response,
         request.app.state.redis_wrapper,
     )
+    await enforce_account_rate_limit(request, str(payload.id), "admin")
     return payload
 
 
 __all__ = [
     "clear_access_token_headers",
+    "enforce_account_rate_limit",
     "get_current_admin",
     "get_current_user",
+    "record_failed_login_attempt",
     "revoke_sessions",
 ]

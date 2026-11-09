@@ -94,6 +94,41 @@ class RedisWrapper:
         except (ConnectionError, RedisError, OSError, TimeoutError):
             return False
 
+    async def check_rate_limit(
+        self,
+        bucket: str,
+        identifier: str,
+        limit: int,
+        window_seconds: int,
+    ) -> int | None:
+        """Increment a fixed-window counter and return retry delay when exceeded."""
+        if limit < 1:
+            raise ValueError("Rate-limit count must be at least one.")
+        if window_seconds < 1:
+            raise ValueError("Rate-limit window must be at least one second.")
+
+        identifier_digest = hashlib.sha256(
+            identifier.encode("utf-8")
+        ).hexdigest()
+        key = f"rate-limit:{bucket}:{identifier_digest}"
+        result = await self._require_client().eval(
+            """
+            local request_count = redis.call("INCR", KEYS[1])
+            if request_count == 1 then
+                redis.call("EXPIRE", KEYS[1], ARGV[1])
+            end
+            return {request_count, redis.call("TTL", KEYS[1])}
+            """,
+            1,
+            key,
+            window_seconds,
+        )
+        request_count = int(result[0])
+        ttl_seconds = max(int(result[1]), 1)
+        if request_count > limit:
+            return ttl_seconds
+        return None
+
     async def create_email_verification_code(
         self,
         email: str,

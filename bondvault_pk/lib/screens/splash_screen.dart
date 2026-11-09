@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
+import '../config/app_theme.dart';
+import '../widgets/widgets.dart';
 import 'login_screen.dart';
 import 'pin_unlock_screen.dart';
 import 'user_screens/home_screen.dart';
@@ -20,7 +23,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   String _statusMessage = 'Initializing BondVault PK...';
   bool _hasError = false;
-  bool _dialogShown = false;
+  bool _sheetShown = false;
 
   @override
   void initState() {
@@ -34,39 +37,28 @@ class _SplashScreenState extends State<SplashScreen> {
     precacheImage(const AssetImage('assets/logo.png'), context);
   }
 
-  void _showErrorDialog({required String title, required String message}) {
-    if (_dialogShown) return;
-    _dialogShown = true;
+  void _showErrorSheet({required String title, required String message}) {
+    if (_sheetShown) return;
+    _sheetShown = true;
 
-    showDialog(
+    showAppNotificationSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFBA1A1A),
-          ),
-        ),
-        content: Text(message, style: const TextStyle(fontSize: 14)),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF003527),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _dialogShown = false;
-              _checkSystemHealth();
-            },
-            child: const Text('Retry'),
-          ),
-        ],
+      title: title,
+      message: message,
+      type: AppNotificationType.error,
+      dismissLabel: 'Close App',
+      onDismiss: () {
+        _sheetShown = false;
+        SystemNavigator.pop();
+      },
+      customAction: AppButton(
+        label: 'Retry Connection',
+        icon: const Icon(Icons.refresh, size: 18),
+        onPressed: () {
+          Navigator.pop(context);
+          _sheetShown = false;
+          _checkSystemHealth();
+        },
       ),
     );
   }
@@ -119,9 +111,9 @@ class _SplashScreenState extends State<SplashScreen> {
           _hasError = true;
           _statusMessage = 'No internet connection available.';
         });
-        _showErrorDialog(
+        _showErrorSheet(
           title: 'Connection Error',
-          message: 'No internet connection available.',
+          message: 'No internet connection available. Please check your Wi-Fi or cellular network.',
         );
         return;
       }
@@ -226,9 +218,9 @@ class _SplashScreenState extends State<SplashScreen> {
             _hasError = true;
             _statusMessage = 'Unable to connect to backend services.';
           });
-          _showErrorDialog(
+          _showErrorSheet(
             title: 'Service Error',
-            message: 'Unable to connect to backend services.',
+            message: 'Unable to connect to backend services. Backend, database, or cache health check failed.',
           );
         }
       } else {
@@ -236,9 +228,10 @@ class _SplashScreenState extends State<SplashScreen> {
           _hasError = true;
           _statusMessage = 'Unable to connect to backend services.';
         });
-        _showErrorDialog(
+        _showErrorSheet(
           title: 'Service Error',
-          message: 'Unable to connect to backend services.',
+          message:
+              'Unable to connect to backend services. Server returned status code ${response.statusCode}.',
         );
       }
     } catch (_) {
@@ -246,9 +239,9 @@ class _SplashScreenState extends State<SplashScreen> {
         _hasError = true;
         _statusMessage = 'Unable to connect to backend services.';
       });
-      _showErrorDialog(
+      _showErrorSheet(
         title: 'Service Error',
-        message: 'Unable to connect to backend services.',
+        message: 'Could not reach backend server. Please try again later.',
       );
     }
   }
@@ -264,7 +257,7 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Circular Logo Card matching template
+                // Circular Logo Card
                 Container(
                   width: 130,
                   height: 130,
@@ -274,7 +267,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF003527).withValues(alpha: 0.12),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),
@@ -285,22 +278,22 @@ class _SplashScreenState extends State<SplashScreen> {
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
+                  children: const [
+                    Text(
                       'BondVault ',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF003527),
+                        color: AppColors.primary,
                         letterSpacing: -0.5,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'PK',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFFD97706),
+                        color: AppColors.warning,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -312,14 +305,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF404944),
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 64),
-                const CircularProgressIndicator(
-                  color: Color(0xFF003527),
-                  strokeWidth: 3,
-                ),
+                const AppLoadingIndicator(),
                 const SizedBox(height: 20),
                 Text(
                   _statusMessage,
@@ -327,22 +317,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _hasError ? Colors.red : const Color(0xFF404944),
+                    color: _hasError
+                        ? AppColors.error
+                        : AppColors.onSurfaceVariant,
                   ),
                 ),
-                if (_hasError) ...[
-                  const SizedBox(height: 20),
-                  ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF003527),
-                    foregroundColor: Colors.white,
-                  ).let(
-                    (style) => ElevatedButton(
-                      style: style,
-                      onPressed: _checkSystemHealth,
-                      child: const Text('Retry Connection'),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -350,8 +329,4 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   }
-}
-
-extension on ButtonStyle {
-  Widget let(Widget Function(ButtonStyle style) builder) => builder(this);
 }

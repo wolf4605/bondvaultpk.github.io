@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
-import '../utils/app_utils.dart';
+import '../config/app_theme.dart';
+import '../widgets/widgets.dart';
 import 'admin_screens/admin_home_screen.dart';
 import 'register_screen.dart';
 import 'user_screens/home_screen.dart';
@@ -26,7 +27,6 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   bool _isAdmin = false;
   bool _isFabOpen = false;
-  String? _errorMessage;
 
   late AnimationController _fabAnimationController;
   late Animation<double> _fabAnimation;
@@ -68,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen>
 
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -96,6 +95,11 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.remove('saved_password');
 
           if (!mounted) return;
+          showAppToast(
+            context,
+            'Admin session authenticated successfully.',
+            type: AppNotificationType.success,
+          );
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -116,6 +120,11 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('cached_user_info', jsonEncode(userInfo));
 
           if (!mounted) return;
+          showAppToast(
+            context,
+            'Welcome back, ${userInfo['full_name'] ?? 'User'}!',
+            type: AppNotificationType.success,
+          );
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -128,21 +137,21 @@ class _LoginScreenState extends State<LoginScreen>
         final data = jsonDecode(response.body);
         final errMsg = data['detail'] ?? 'Invalid username or password.';
         if (!mounted) return;
-        showErrorBottomSheet(
+        showAppNotificationSheet(
           context: context,
           title: 'Authentication Error',
           message: errMsg,
-          onDismiss: () {},
+          type: AppNotificationType.error,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorBottomSheet(
+      showAppNotificationSheet(
         context: context,
         title: 'Connection Error',
         message:
             'Could not reach backend server. Please check your connection.',
-        onDismiss: () {},
+        type: AppNotificationType.error,
       );
     } finally {
       if (mounted) {
@@ -160,32 +169,43 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showForgotPasswordDialog() {
+    final recoveryEmailController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Password Recovery'),
-        content: const Text(
-          'Please enter your registered email address to receive password reset instructions.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Please enter your registered email address to receive password reset instructions.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            AppTextField(
+              controller: recoveryEmailController,
+              labelText: 'Email Address',
+              prefixIcon: const Icon(Icons.email_outlined),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF003527),
-              foregroundColor: Colors.white,
-            ),
+          AppButton(
+            label: 'Send Code',
+            fullWidth: false,
             onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Recovery code sent to email if registered.'),
-                ),
+              Navigator.pop(dialogContext);
+              showAppToast(
+                context,
+                'Recovery code sent to email if registered.',
+                type: AppNotificationType.info,
               );
             },
-            child: const Text('Send Code'),
           ),
         ],
       ),
@@ -220,8 +240,9 @@ class _LoginScreenState extends State<LoginScreen>
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF064E3B)
-                                  .withValues(alpha: 0.18),
+                              color: AppColors.primaryContainer.withValues(
+                                alpha: 0.18,
+                              ),
                               blurRadius: 24,
                               offset: const Offset(0, 8),
                             ),
@@ -243,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen>
                             style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF003527),
+                              color: AppColors.primary,
                               letterSpacing: -0.5,
                             ),
                           ),
@@ -253,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen>
                               style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFFD97706),
+                                color: AppColors.warning,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -262,26 +283,9 @@ class _LoginScreenState extends State<LoginScreen>
                       const SizedBox(height: 6),
 
                       if (_isAdmin) ...[
-                        Container(
-                          margin: const EdgeInsets.only(top: 4, bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.amber.shade200),
-                          ),
-                          child: const Text(
-                            '● ADMINISTRATOR LOGIN',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFD97706),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 4),
+                        AppBadge.admin(),
+                        const SizedBox(height: 4),
                       ],
 
                       // Subtitle
@@ -294,48 +298,17 @@ class _LoginScreenState extends State<LoginScreen>
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF404944),
+                            color: AppColors.onSurfaceVariant,
                             height: 1.4,
                           ),
                         ),
                       ),
                       const SizedBox(height: 24),
 
-                      if (_errorMessage != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(
-                              color: Colors.red.shade800,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
                       // Form Card
-                      Container(
+                      AppCard(
                         padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF064E3B)
-                                  .withValues(alpha: 0.06),
-                              blurRadius: 12,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
+                        elevation: 2,
                         child: Form(
                           key: _formKey,
                           child: Column(
@@ -348,24 +321,16 @@ class _LoginScreenState extends State<LoginScreen>
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF131B2E),
+                                  color: AppColors.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              TextFormField(
+                              AppTextField(
                                 controller: _usernameController,
-                                decoration: InputDecoration(
-                                  hintText: 'example@example.com',
-                                  prefixIcon: const Icon(
-                                    Icons.badge_outlined,
-                                    size: 20,
-                                  ),
-                                  filled: true,
-                                  fillColor: const Color(0xFFF2F3FF),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
+                                hintText: 'example@example.com',
+                                prefixIcon: const Icon(
+                                  Icons.badge_outlined,
+                                  size: 20,
                                 ),
                                 validator: (v) =>
                                     v == null || v.isEmpty ? 'Required' : null,
@@ -381,7 +346,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF131B2E),
+                                      color: AppColors.onSurface,
                                     ),
                                   ),
                                   if (!_isAdmin)
@@ -398,39 +363,30 @@ class _LoginScreenState extends State<LoginScreen>
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF904D00),
+                                          color: AppColors.secondary,
                                         ),
                                       ),
                                     ),
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              TextFormField(
+                              AppTextField(
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
-                                decoration: InputDecoration(
-                                  hintText: 'Enter your password',
-                                  prefixIcon: const Icon(
-                                    Icons.lock_outline,
+                                hintText: 'Enter your password',
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline,
+                                  size: 20,
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
                                     size: 20,
                                   ),
-                                  filled: true,
-                                  fillColor: const Color(0xFFF2F3FF),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
-                                    ),
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
                                   ),
                                 ),
                                 validator: (v) =>
@@ -438,49 +394,13 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               const SizedBox(height: 24),
 
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF003527),
-                                    foregroundColor: Colors.white,
-                                    elevation: 4,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  onPressed: _isLoading ? null : _login,
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.lock_open,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              _isAdmin
-                                                  ? 'Admin Sign In →'
-                                                  : 'Sign In →',
-                                              style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                ),
+                              AppButton(
+                                label: _isAdmin
+                                    ? 'Admin Sign In →'
+                                    : 'Sign In →',
+                                isLoading: _isLoading,
+                                icon: const Icon(Icons.lock_open, size: 18),
+                                onPressed: _login,
                               ),
                             ],
                           ),
@@ -509,7 +429,6 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // Option 1: Admin / User Sign In Toggle
                             _buildFabMenuItem(
                               label: _isAdmin
                                   ? 'User Sign In'
@@ -523,7 +442,6 @@ class _LoginScreenState extends State<LoginScreen>
                               },
                             ),
                             const SizedBox(height: 8),
-                            // Option 2: Sign Up
                             if (!_isAdmin)
                               _buildFabMenuItem(
                                 label: 'Sign Up',
@@ -540,7 +458,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 },
                               ),
                             if (!_isAdmin) const SizedBox(height: 8),
-                            // Option 3: Recover Password
                             if (!_isAdmin)
                               _buildFabMenuItem(
                                 label: 'Recover Password',
@@ -556,7 +473,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   FloatingActionButton(
-                    backgroundColor: const Color(0xFF003527),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 6,
                     shape: const CircleBorder(),
@@ -607,7 +524,7 @@ class _LoginScreenState extends State<LoginScreen>
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF131B2E),
+                color: AppColors.onSurface,
               ),
             ),
             const SizedBox(width: 10),
@@ -615,10 +532,10 @@ class _LoginScreenState extends State<LoginScreen>
               width: 32,
               height: 32,
               decoration: const BoxDecoration(
-                color: Color(0xFFF2F3FF),
+                color: AppColors.surfaceContainerLow,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 16, color: const Color(0xFF003527)),
+              child: Icon(icon, size: 16, color: AppColors.primary),
             ),
           ],
         ),

@@ -124,13 +124,15 @@ async def send_market_listing_removed_email(
     recipient: EmailStr,
     username: str,
     listing_title: str,
+    reason: str,
 ) -> None:
-    """Notify a user that an administrator removed their marketplace listing."""
+    """Notify a user that an administrator removed their listing and explain why."""
     subject, body = _render_mail_template(
         "market_listing_removed",
         {
             "username": username,
             "listing_title": listing_title,
+            "reason": reason,
         },
     )
     await send_email(recipient, subject, body)
