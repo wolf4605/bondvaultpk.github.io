@@ -361,12 +361,19 @@ class _VibrantDrawCardState extends State<VibrantDrawCard> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          AppBadge(
-                            label:
-                                '${formatNumber(widget.winnerCount)} Winners',
-                            type: AppBadgeType.warning,
-                            icon: Icons.emoji_events,
-                            isSmall: true,
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: AppBadge(
+                                label:
+                                    '${formatNumber(widget.winnerCount)} Winners',
+                                type: AppBadgeType.warning,
+                                icon: Icons.emoji_events,
+                                isSmall: true,
+                              ),
+                            ),
                           ),
                         ],
                       ),

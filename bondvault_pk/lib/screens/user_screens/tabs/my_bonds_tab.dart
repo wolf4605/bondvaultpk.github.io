@@ -230,36 +230,52 @@ class _MyBondsTabState extends State<MyBondsTab> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.account_balance_wallet_outlined,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.account_balance_wallet_outlined,
-                                    color: Colors.white,
-                                    size: 14,
+                                  const SizedBox(width: 8),
+                                  const Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'TOTAL BOND VALUE',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.2,
+                                          color: Color(0xFFD1FAE5),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'TOTAL BOND VALUE',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                    color: Color(0xFFD1FAE5),
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            AppBadge(
-                              label: '$totalBonds Bonds Held',
-                              type: AppBadgeType.success,
-                              icon: Icons.verified,
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: AppBadge(
+                                  label: '$totalBonds Bonds Held',
+                                  type: AppBadgeType.success,
+                                  icon: Icons.verified,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -298,29 +314,45 @@ class _MyBondsTabState extends State<MyBondsTab> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.savings_outlined,
-                                    size: 16,
-                                    color: Color(0xFF95D3BA),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '${_bondlists.length} Denominations',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                              Flexible(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.savings_outlined,
+                                      size: 16,
+                                      color: Color(0xFF95D3BA),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          '${_bondlists.length} Denominations',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              AppBadge(
-                                label:
-                                    'Rs. ${formatNumber(_totalWonAmount)} Won',
-                                type: AppBadgeType.warning,
-                                icon: Icons.emoji_events,
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: AppBadge(
+                                    label:
+                                        'Rs. ${formatNumber(_totalWonAmount)} Won',
+                                    type: AppBadgeType.warning,
+                                    icon: Icons.emoji_events,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -502,27 +534,37 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons
-                                                  .account_balance_wallet_outlined,
-                                              size: 14,
-                                              color: AppColors.primary,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Total Value: Rs. ${formatNumber(totalVal)}',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDark
-                                                    ? Colors.white
-                                                    : AppColors.onSurface,
+                                        Flexible(
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons
+                                                    .account_balance_wallet_outlined,
+                                                size: 14,
+                                                color: AppColors.primary,
                                               ),
-                                            ),
-                                          ],
+                                              const SizedBox(width: 4),
+                                              Flexible(
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment: Alignment.centerLeft,
+                                                  child: Text(
+                                                    'Total Value: Rs. ${formatNumber(totalVal)}',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isDark
+                                                          ? Colors.white
+                                                          : AppColors.onSurface,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
+                                        const SizedBox(width: 6),
                                         // TXT Export Button
                                         SizedBox(
                                           height: 34,
@@ -534,7 +576,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                               elevation: 1,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                    horizontal: 12,
+                                                    horizontal: 10,
                                                   ),
                                               shape: RoundedRectangleBorder(
                                                 borderRadius:

@@ -272,6 +272,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: Responsive.maxContentWidth(context),
+              maxHeight: MediaQuery.sizeOf(context).height * 0.85,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -336,100 +337,103 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                 ),
 
-                // Body
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'SUSPENSION DURATION',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                          color: Colors.grey,
+                // Body wrapped in Flexible to scroll when keyboard opens
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'SUSPENSION DURATION',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: periods.map((period) {
-                          final isSelected = selectedPeriod == period;
-                          return ChoiceChip(
-                            label: Text(
-                              period.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.onSurface,
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: periods.map((period) {
+                            final isSelected = selectedPeriod == period;
+                            return ChoiceChip(
+                              label: Text(
+                                period.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.onSurface,
+                                ),
                               ),
-                            ),
-                            selected: isSelected,
-                            selectedColor: AppColors.error,
-                            backgroundColor: AppColors.surfaceContainerLow,
-                            onSelected: (sel) {
-                              if (sel) {
-                                setStateDialog(() => selectedPeriod = period);
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 18),
-                      const Text(
-                        'REASON FOR SUSPENSION',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                          color: Colors.grey,
+                              selected: isSelected,
+                              selectedColor: AppColors.error,
+                              backgroundColor: AppColors.surfaceContainerLow,
+                              onSelected: (sel) {
+                                if (sel) {
+                                  setStateDialog(() => selectedPeriod = period);
+                                }
+                              },
+                            );
+                          }).toList(),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      AppTextField(
-                        controller: reasonController,
-                        maxLines: 2,
-                        labelText: 'Reason for suspension (optional)',
-                        hintText: 'e.g. Flagged for policy violation',
-                        prefixIcon: const Icon(Icons.description_outlined),
-                      ),
-                      const SizedBox(height: 24),
-                      AppButton(
-                        label: 'Confirm Account Suspension',
-                        variant: AppButtonVariant.danger,
-                        isLoading:
-                            _loadingUserId == userId && _loadingAction == 'ban',
-                        icon: const Icon(Icons.lock_outline, size: 18),
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
-                          DateTime? durationUntil;
-                          final now = DateTime.now();
-                          if (selectedPeriod == '1 day') {
-                            durationUntil = now.add(const Duration(days: 1));
-                          } else if (selectedPeriod == '3 day') {
-                            durationUntil = now.add(const Duration(days: 3));
-                          } else if (selectedPeriod == '7 day') {
-                            durationUntil = now.add(const Duration(days: 7));
-                          } else if (selectedPeriod == '15 day') {
-                            durationUntil = now.add(const Duration(days: 15));
-                          } else if (selectedPeriod == '1 month') {
-                            durationUntil = now.add(const Duration(days: 30));
-                          } else {
-                            durationUntil = null;
-                          }
-                          final reason = reasonController.text.trim();
-                          _blacklistUser(
-                            userId,
-                            durationUntil,
-                            reason.isNotEmpty ? reason : null,
-                          );
-                        },
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        const Text(
+                          'REASON FOR SUSPENSION',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        AppTextField(
+                          controller: reasonController,
+                          maxLines: 2,
+                          labelText: 'Reason for suspension (optional)',
+                          hintText: 'e.g. Flagged for policy violation',
+                          prefixIcon: const Icon(Icons.description_outlined),
+                        ),
+                        const SizedBox(height: 24),
+                        AppButton(
+                          label: 'Confirm Account Suspension',
+                          variant: AppButtonVariant.danger,
+                          isLoading:
+                              _loadingUserId == userId &&
+                              _loadingAction == 'ban',
+                          icon: const Icon(Icons.lock_outline, size: 18),
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            DateTime? durationUntil;
+                            final now = DateTime.now();
+                            if (selectedPeriod == '1 day') {
+                              durationUntil = now.add(const Duration(days: 1));
+                            } else if (selectedPeriod == '3 day') {
+                              durationUntil = now.add(const Duration(days: 3));
+                            } else if (selectedPeriod == '7 day') {
+                              durationUntil = now.add(const Duration(days: 7));
+                            } else if (selectedPeriod == '15 day') {
+                              durationUntil = now.add(const Duration(days: 15));
+                            } else if (selectedPeriod == '1 month') {
+                              durationUntil = now.add(const Duration(days: 30));
+                            } else {
+                              durationUntil = null;
+                            }
+                            final reason = reasonController.text.trim();
+                            _blacklistUser(
+                              userId,
+                              durationUntil,
+                              reason.isNotEmpty ? reason : null,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -903,7 +907,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                 LayoutBuilder(
                                   builder: (context, constraints) {
                                     final isNarrow = constraints.maxWidth < 320;
-                                    final verifyBtn = (!isVerified && !isBlacklisted)
+                                    final verifyBtn =
+                                        (!isVerified && !isBlacklisted)
                                         ? AppButton(
                                             label: 'Verify',
                                             isLoading: isApproving,
@@ -922,7 +927,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                         : null;
 
                                     final banBtn = AppButton(
-                                      label: isBlacklisted ? 'Unban' : 'Ban User',
+                                      label: isBlacklisted
+                                          ? 'Unban'
+                                          : 'Ban User',
                                       variant: isBlacklisted
                                           ? AppButtonVariant.primary
                                           : AppButtonVariant.secondary,
@@ -935,9 +942,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                       ),
                                       height: 40,
                                       onPressed:
-                                          isApproving ||
-                                              isBanning ||
-                                              isDeleting
+                                          isApproving || isBanning || isDeleting
                                           ? null
                                           : () {
                                               if (isBlacklisted) {
@@ -961,9 +966,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                       ),
                                       height: 40,
                                       onPressed:
-                                          isApproving ||
-                                              isBanning ||
-                                              isDeleting
+                                          isApproving || isBanning || isDeleting
                                           ? null
                                           : () => _deleteUser(userId),
                                     );
@@ -974,9 +977,21 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                         runSpacing: 8,
                                         children: [
                                           if (verifyBtn != null)
-                                            SizedBox(width: (constraints.maxWidth - 8) / 2, child: verifyBtn),
-                                          SizedBox(width: (constraints.maxWidth - 8) / 2, child: banBtn),
-                                          SizedBox(width: constraints.maxWidth, child: deleteBtn),
+                                            SizedBox(
+                                              width:
+                                                  (constraints.maxWidth - 8) /
+                                                  2,
+                                              child: verifyBtn,
+                                            ),
+                                          SizedBox(
+                                            width:
+                                                (constraints.maxWidth - 8) / 2,
+                                            child: banBtn,
+                                          ),
+                                          SizedBox(
+                                            width: constraints.maxWidth,
+                                            child: deleteBtn,
+                                          ),
                                         ],
                                       );
                                     }

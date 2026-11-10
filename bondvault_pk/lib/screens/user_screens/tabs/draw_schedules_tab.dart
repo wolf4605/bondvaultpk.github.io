@@ -156,10 +156,16 @@ class _DrawSchedulesTabState extends State<DrawSchedulesTab> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          AppBadge(
-                                            label: 'Upcoming',
-                                            type: AppBadgeType.info,
-                                            isSmall: true,
+                                          Flexible(
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              alignment: Alignment.centerRight,
+                                              child: AppBadge(
+                                                label: 'Upcoming',
+                                                type: AppBadgeType.info,
+                                                isSmall: true,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),

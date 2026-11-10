@@ -201,20 +201,33 @@ class _DrawDetailScreenState extends State<DrawDetailScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Rs. ${formatNumber(widget.denomination)} OFFICIAL GAZETTE',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.2,
-                                      color: Color(0xFFD1FAE5),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Rs. ${formatNumber(widget.denomination)} OFFICIAL GAZETTE',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.2,
+                                          color: Color(0xFFD1FAE5),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  AppBadge(
-                                    label:
-                                        '${formatNumber(_winners.length)} Winners',
-                                    type: AppBadgeType.warning,
-                                    icon: Icons.emoji_events,
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: AppBadge(
+                                        label:
+                                            '${formatNumber(_winners.length)} Winners',
+                                        type: AppBadgeType.warning,
+                                        icon: Icons.emoji_events,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),

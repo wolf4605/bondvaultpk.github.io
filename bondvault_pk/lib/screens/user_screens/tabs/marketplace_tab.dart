@@ -37,6 +37,9 @@ class _MarketplaceTabState extends State<MarketplaceTab>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     if (widget.isVerified) {
       _fetchListings();
     } else {
@@ -365,8 +368,8 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                                   );
                                   final desc =
                                       descController.text.trim().isEmpty
-                                      ? null
-                                      : descController.text.trim();
+                                          ? null
+                                          : descController.text.trim();
 
                                   final res = isEdit
                                       ? await ApiService.updateMarketListing(
@@ -495,14 +498,23 @@ class _MarketplaceTabState extends State<MarketplaceTab>
       return const AppEmptyState(
         icon: Icons.storefront_outlined,
         title: 'Feature Locked',
-        message: 'Your account is currently under verification review. Marketplace trading will unlock automatically once approved.',
+        message:
+            'Your account is currently under verification review. Marketplace trading will unlock automatically once approved.',
       );
     }
 
     final myUserId = widget.userId.trim();
+
+    // User's own listings
     final myListings = _listings.where((item) {
       final ownerId = item['posted_by']?.toString() ?? '';
       return ownerId.isNotEmpty && ownerId == myUserId;
+    }).toList();
+
+    // Other users' listings for the Marketplace tab
+    final otherListings = _listings.where((item) {
+      final ownerId = item['posted_by']?.toString() ?? '';
+      return myUserId.isEmpty || ownerId != myUserId;
     }).toList();
 
     return Scaffold(
@@ -522,7 +534,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
           tabs: [
             Tab(
               icon: const Icon(Icons.storefront_outlined),
-              text: 'Marketplace (${_listings.length})',
+              text: 'Marketplace (${otherListings.length})',
             ),
             Tab(
               icon: const Icon(Icons.sell_outlined),
@@ -534,25 +546,27 @@ class _MarketplaceTabState extends State<MarketplaceTab>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Tab 1: Marketplace Overview
-          _buildMarketplaceTab(),
+          // Tab 1: Marketplace Overview (Other Users' Listings Only)
+          _buildMarketplaceTab(otherListings),
 
-          // Tab 2: My Listings
+          // Tab 2: My Listings (User's Own Listings Only)
           _buildMyListingsTab(myListings),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        onPressed: () => _showListingDialog(isEdit: false),
-        icon: const Icon(Icons.add),
-        label: const Text('New Listing'),
-      ),
+      floatingActionButton: _tabController.index == 1
+          ? FloatingActionButton.extended(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              onPressed: () => _showListingDialog(isEdit: false),
+              icon: const Icon(Icons.add),
+              label: const Text('New Listing'),
+            )
+          : null,
     );
   }
 
-  Widget _buildMarketplaceTab() {
-    final filtered = _listings.where((item) {
+  Widget _buildMarketplaceTab(List<dynamic> marketListings) {
+    final filtered = marketListings.where((item) {
       final title = (item['title'] ?? '').toString().toLowerCase();
       final category = (item['category'] ?? '').toString().toLowerCase();
 
@@ -653,7 +667,8 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                           ? const AppEmptyState(
                               icon: Icons.storefront_outlined,
                               title: 'No Market Listings Found',
-                              message: 'No active marketplace listings match your selected filter.',
+                              message:
+                                  'No active marketplace listings match your selected filter.',
                             )
                           : ListView.builder(
                               shrinkWrap: true,
@@ -701,7 +716,8 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                           ? const AppEmptyState(
                               icon: Icons.post_add_outlined,
                               title: 'No Listings Published Yet',
-                              message: 'Tap the + New Listing button below to post a prize bond buy or sell offer to the marketplace.',
+                              message:
+                                  'Tap the + New Listing button below to post a prize bond buy or sell offer to the marketplace.',
                             )
                           : ListView.builder(
                               shrinkWrap: true,
@@ -1001,15 +1017,22 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                             : AppColors.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        sellerPhone,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : AppColors.onSurface,
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            sellerPhone,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? Colors.white70
+                                  : AppColors.onSurface,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 10),
                       Icon(
                         Icons.email_outlined,
                         size: 13,
@@ -1117,7 +1140,10 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                   icon: const Icon(Icons.chat_bubble_outline, size: 16),
                   label: const Text(
                     'Chat on WhatsApp',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
