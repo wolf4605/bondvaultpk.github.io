@@ -122,7 +122,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               blacklistedSet.contains(contact) ||
               blacklistedSet.contains(id);
           map['is_blacklisted'] = isBlacklisted;
-          map['blacklist_reason'] = blacklistReasonMap[email] ??
+          map['blacklist_reason'] =
+              blacklistReasonMap[email] ??
               blacklistReasonMap[contact] ??
               blacklistReasonMap[id] ??
               'Account suspended by administrator.';
@@ -420,25 +421,35 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: const [
-                        Icon(
-                          Icons.dns_outlined,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'CORE INFRASTRUCTURE STATUS',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.dns_outlined,
+                            size: 18,
                             color: AppColors.primary,
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'CORE INFRASTRUCTURE STATUS',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 6),
                     AppBadge(
                       label: 'NORMAL',
                       type: AppBadgeType.success,
@@ -447,32 +458,48 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSubStatusCard(
-                        'Backend\nAPI',
-                        'Live',
-                        AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSubStatusCard(
-                        'Database\n(PG)',
-                        'OK',
-                        AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildSubStatusCard(
-                        'Redis\n(Cache)',
-                        'Active',
-                        AppColors.success,
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 340;
+                    final card1 = _buildSubStatusCard(
+                      'Backend API',
+                      'Live',
+                      AppColors.success,
+                    );
+                    final card2 = _buildSubStatusCard(
+                      'Database (PG)',
+                      'OK',
+                      AppColors.success,
+                    );
+                    final card3 = _buildSubStatusCard(
+                      'Redis (Cache)',
+                      'Active',
+                      AppColors.success,
+                    );
+
+                    if (isNarrow) {
+                      final itemWidth = (constraints.maxWidth - 8) / 2;
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          SizedBox(width: itemWidth, child: card1),
+                          SizedBox(width: itemWidth, child: card2),
+                          SizedBox(width: constraints.maxWidth, child: card3),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: card1),
+                        const SizedBox(width: 6),
+                        Expanded(child: card2),
+                        const SizedBox(width: 6),
+                        Expanded(child: card3),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -483,45 +510,61 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           const AppSectionHeader(title: 'User Overview', tagline: 'ANALYTICS'),
           const SizedBox(height: 12),
 
-          // Stat Cards Grid (3 cards)
-          Row(
-            children: [
-              Expanded(
-                child: AppStatCard(
-                  title: 'Total Users',
-                  value: _isLoadingStats ? '...' : '$_totalUsers',
-                  icon: Icons.person_outline,
-                  subtitle: 'Registered',
-                  iconColor: Colors.blue,
+          // Stat Cards Grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 340;
+              final stat1 = AppStatCard(
+                title: 'Total Users',
+                value: _isLoadingStats ? '...' : '$_totalUsers',
+                icon: Icons.person_outline,
+                subtitle: 'Registered',
+                iconColor: Colors.blue,
+              );
+              final stat2 = AppStatCard(
+                title: 'New (7d)',
+                value: _isLoadingUsers ? '...' : '+$_newUsersCount',
+                icon: Icons.person_add_outlined,
+                subtitle: 'Onboarded',
+                iconColor: Colors.teal,
+              );
+              final stat3 = AppStatCard(
+                title: 'Awaiting',
+                value: '$unverifiedCount Users',
+                icon: Icons.fingerprint,
+                subtitle: 'Reviews →',
+                iconColor: AppColors.warning,
+                onTap: () => setState(() => _currentIndex = 1),
+                badge: AppBadge(
+                  label: 'PENDING',
+                  type: AppBadgeType.warning,
+                  isSmall: true,
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: AppStatCard(
-                  title: 'New (7d)',
-                  value: _isLoadingUsers ? '...' : '+$_newUsersCount',
-                  icon: Icons.person_add_outlined,
-                  subtitle: 'Onboarded',
-                  iconColor: Colors.teal,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: AppStatCard(
-                  title: 'Awaiting',
-                  value: '$unverifiedCount Users',
-                  icon: Icons.fingerprint,
-                  subtitle: 'Reviews →',
-                  iconColor: AppColors.warning,
-                  onTap: () => setState(() => _currentIndex = 1),
-                  badge: AppBadge(
-                    label: 'PENDING',
-                    type: AppBadgeType.warning,
-                    isSmall: true,
-                  ),
-                ),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                final itemWidth = (constraints.maxWidth - 8) / 2;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(width: itemWidth, child: stat1),
+                    SizedBox(width: itemWidth, child: stat2),
+                    SizedBox(width: constraints.maxWidth, child: stat3),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: stat1),
+                  const SizedBox(width: 6),
+                  Expanded(child: stat2),
+                  const SizedBox(width: 6),
+                  Expanded(child: stat3),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
 
@@ -673,7 +716,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Widget _buildSubStatusCard(String title, String badgeText, Color badgeColor) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(14),
@@ -685,22 +728,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
                 ),
               ),
-              AppBadge(
-                label: badgeText,
-                type: AppBadgeType.success,
-                isSmall: true,
+              const SizedBox(width: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: AppBadge(
+                  label: badgeText,
+                  type: AppBadgeType.success,
+                  isSmall: true,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
         ],
       ),
     );

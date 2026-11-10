@@ -900,81 +900,99 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                 const SizedBox(height: 16),
 
                                 // Action Buttons Row with Loading/Waiting States
-                                Row(
-                                  children: [
-                                    if (!isVerified && !isBlacklisted) ...[
-                                      Expanded(
-                                        child: AppButton(
-                                          label: 'Verify',
-                                          isLoading: isApproving,
-                                          icon: const Icon(
-                                            Icons.verified,
-                                            size: 16,
-                                          ),
-                                          height: 44,
-                                          onPressed:
-                                              isApproving ||
-                                                  isBanning ||
-                                                  isDeleting
-                                              ? null
-                                              : () => _approveUser(userId),
-                                        ),
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final isNarrow = constraints.maxWidth < 320;
+                                    final verifyBtn = (!isVerified && !isBlacklisted)
+                                        ? AppButton(
+                                            label: 'Verify',
+                                            isLoading: isApproving,
+                                            icon: const Icon(
+                                              Icons.verified,
+                                              size: 16,
+                                            ),
+                                            height: 40,
+                                            onPressed:
+                                                isApproving ||
+                                                    isBanning ||
+                                                    isDeleting
+                                                ? null
+                                                : () => _approveUser(userId),
+                                          )
+                                        : null;
+
+                                    final banBtn = AppButton(
+                                      label: isBlacklisted ? 'Unban' : 'Ban User',
+                                      variant: isBlacklisted
+                                          ? AppButtonVariant.primary
+                                          : AppButtonVariant.secondary,
+                                      isLoading: isBanning,
+                                      icon: Icon(
+                                        isBlacklisted
+                                            ? Icons.lock_open
+                                            : Icons.block,
+                                        size: 16,
                                       ),
-                                      const SizedBox(width: 8),
-                                    ],
-                                    Expanded(
-                                      child: AppButton(
-                                        label: isBlacklisted
-                                            ? 'Unban'
-                                            : 'Ban User',
-                                        variant: isBlacklisted
-                                            ? AppButtonVariant.primary
-                                            : AppButtonVariant.secondary,
-                                        isLoading: isBanning,
-                                        icon: Icon(
-                                          isBlacklisted
-                                              ? Icons.lock_open
-                                              : Icons.block,
-                                          size: 16,
-                                        ),
-                                        height: 44,
-                                        onPressed:
-                                            isApproving ||
-                                                isBanning ||
-                                                isDeleting
-                                            ? null
-                                            : () {
-                                                if (isBlacklisted) {
-                                                  _unblacklistUser(userId);
-                                                } else {
-                                                  _showBlacklistDialog(
-                                                    context,
-                                                    userId,
-                                                  );
-                                                }
-                                              },
+                                      height: 40,
+                                      onPressed:
+                                          isApproving ||
+                                              isBanning ||
+                                              isDeleting
+                                          ? null
+                                          : () {
+                                              if (isBlacklisted) {
+                                                _unblacklistUser(userId);
+                                              } else {
+                                                _showBlacklistDialog(
+                                                  context,
+                                                  userId,
+                                                );
+                                              }
+                                            },
+                                    );
+
+                                    final deleteBtn = AppButton(
+                                      label: 'Delete',
+                                      variant: AppButtonVariant.danger,
+                                      isLoading: isDeleting,
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        size: 16,
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: AppButton(
-                                        label: 'Delete',
-                                        variant: AppButtonVariant.danger,
-                                        isLoading: isDeleting,
-                                        icon: const Icon(
-                                          Icons.delete_outline,
-                                          size: 16,
-                                        ),
-                                        height: 44,
-                                        onPressed:
-                                            isApproving ||
-                                                isBanning ||
-                                                isDeleting
-                                            ? null
-                                            : () => _deleteUser(userId),
-                                      ),
-                                    ),
-                                  ],
+                                      height: 40,
+                                      onPressed:
+                                          isApproving ||
+                                              isBanning ||
+                                              isDeleting
+                                          ? null
+                                          : () => _deleteUser(userId),
+                                    );
+
+                                    if (isNarrow) {
+                                      return Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          if (verifyBtn != null)
+                                            SizedBox(width: (constraints.maxWidth - 8) / 2, child: verifyBtn),
+                                          SizedBox(width: (constraints.maxWidth - 8) / 2, child: banBtn),
+                                          SizedBox(width: constraints.maxWidth, child: deleteBtn),
+                                        ],
+                                      );
+                                    }
+
+                                    return Row(
+                                      children: [
+                                        if (verifyBtn != null) ...[
+                                          Expanded(child: verifyBtn),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        Expanded(child: banBtn),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: deleteBtn),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ],
                             ),
