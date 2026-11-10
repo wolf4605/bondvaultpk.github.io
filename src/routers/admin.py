@@ -15,6 +15,7 @@
 * Copyright© BondVault PK. All rights reserved.
 """
 
+import asyncio
 import logging
 from typing import Annotated
 from uuid import UUID
@@ -69,8 +70,7 @@ async def _revoke_sessions_and_notify_user(
     details: str,
     request: Request,
 ) -> None:
-    """Attempt session revocation and email independently after the DB action."""
-    failures: list[str] = []
+    """Attempt session revocation immediately and dispatch notification email asynchronously to ensure instant API performance."""
     try:
         await revoke_sessions(
             user_id,
@@ -82,25 +82,17 @@ async def _revoke_sessions_and_notify_user(
             "user account action completed but session revocation failed",
             extra={"event": "user.session.revocation_failed", "action": action},
         )
-        failures.append("active sessions could not be revoked")
 
-    try:
-        await send_user_action_email(email, username, action, details)
-    except RuntimeError:
-        logger.exception(
-            "user account action completed but notification email failed",
-            extra={"event": "user.notification.email_failed", "action": action},
-        )
-        failures.append("the notification email could not be sent")
+    async def _send_email_async() -> None:
+        try:
+            await send_user_action_email(email, username, action, details)
+        except Exception:
+            logger.exception(
+                "user account action completed but notification email failed",
+                extra={"event": "user.notification.email_failed", "action": action},
+            )
 
-    if failures:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                f"The account was {action}, but "
-                f"{' and '.join(failures)}. The account action has already taken effect."
-            ),
-        )
+    asyncio.create_task(_send_email_async())
 
 
 @router.get(
@@ -138,15 +130,19 @@ async def fetch_admin_audit_events(
     offset: int = Query(default=0, ge=0),
 ) -> responses.AdminAuditEventsResponse:
     """Return recent administrator API requests, newest first."""
-    total = await DB.fetchval('SELECT COUNT(*) FROM "admin_audit"')
+    total = await DB.fetchval('SELECT COUNT(*) FROM "admin_audit" WHERE "http_method" != \'GET\'')
     records = await DB.fetch(
         """
-        SELECT "event_id", "occurred_at", "actor_admin_id", "action",
-               "subject", "subject_id", "description", "http_method",
-               "route", "status_code", "duration_ms", "client_ip"::TEXT,
-               "user_agent", "request_id"
-        FROM "admin_audit"
-        ORDER BY "occurred_at" DESC, "event_id" DESC
+        SELECT a."event_id", a."occurred_at", a."actor_admin_id",
+               admins."username" AS "actor_username",
+               admins."email" AS "actor_email",
+               a."action", a."subject", a."subject_id", a."description",
+               a."http_method", a."route", a."status_code", a."duration_ms",
+               a."client_ip"::TEXT, a."user_agent", a."request_id"
+        FROM "admin_audit" AS a
+        LEFT JOIN "admins" ON admins."id" = a."actor_admin_id"
+        WHERE a."http_method" != 'GET'
+        ORDER BY a."occurred_at" DESC, a."event_id" DESC
         LIMIT $1 OFFSET $2
         """,
         limit,

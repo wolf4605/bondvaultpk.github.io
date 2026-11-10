@@ -36,6 +36,15 @@ class BondVaultApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: MediaQuery.textScalerOf(context)
+                    .clamp(minScaleFactor: 0.90, maxScaleFactor: 1.08),
+              ),
+              child: child!,
+            );
+          },
           home: const SplashScreen(),
         );
       },

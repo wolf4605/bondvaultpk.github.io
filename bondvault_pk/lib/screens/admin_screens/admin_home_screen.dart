@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
 import '../../config/app_theme.dart';
+import '../../utils/api_service.dart';
 import '../../widgets/widgets.dart';
 import '../login_screen.dart';
+import 'admin_audit_logs_screen.dart';
 import 'admin_users_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -30,6 +32,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _totalUsers = 0;
   List<dynamic> _usersList = [];
   bool _isLoadingUsers = false;
+  List<dynamic> _recentAuditEvents = [];
 
   int get _newUsersCount {
     final now = DateTime.now();
@@ -75,18 +78,29 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         headers: {'Authorization': 'Bearer ${widget.accessToken}'},
       );
       final blacklistedSet = <String>{};
+      final blacklistReasonMap = <String, String>{};
       if (blacklistRes.statusCode == 200) {
         final blacklistData = jsonDecode(blacklistRes.body);
         final list = blacklistData['blacklisted_users'] ?? [];
         for (var b in list) {
+          final reason = (b['reason'] ?? '').toString().trim();
+          final effectiveReason = reason.isNotEmpty
+              ? reason
+              : 'Account suspended by administrator.';
           if (b['email'] != null) {
-            blacklistedSet.add(b['email'].toString().toLowerCase());
+            final em = b['email'].toString().toLowerCase();
+            blacklistedSet.add(em);
+            blacklistReasonMap[em] = effectiveReason;
           }
           if (b['contact'] != null) {
-            blacklistedSet.add(b['contact'].toString());
+            final ct = b['contact'].toString();
+            blacklistedSet.add(ct);
+            blacklistReasonMap[ct] = effectiveReason;
           }
           if (b['user_id'] != null) {
-            blacklistedSet.add(b['user_id'].toString());
+            final uid = b['user_id'].toString();
+            blacklistedSet.add(uid);
+            blacklistReasonMap[uid] = effectiveReason;
           }
         }
       }
@@ -108,8 +122,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               blacklistedSet.contains(contact) ||
               blacklistedSet.contains(id);
           map['is_blacklisted'] = isBlacklisted;
+          map['blacklist_reason'] = blacklistReasonMap[email] ??
+              blacklistReasonMap[contact] ??
+              blacklistReasonMap[id] ??
+              'Account suspended by administrator.';
           return map;
         }).toList();
+      }
+
+      final auditData = await ApiService.fetchAdminAuditLogs(
+        adminToken: widget.accessToken,
+        limit: 3,
+      );
+      if (auditData != null) {
+        final list = auditData['events'] ?? auditData['audit_events'] ?? [];
+        if (list is List) {
+          _recentAuditEvents = list;
+        }
       }
     } catch (_) {
     } finally {
@@ -119,6 +148,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           _isLoadingUsers = false;
         });
       }
+    }
+  }
+
+  String _formatAuditTime(String raw) {
+    if (raw.isEmpty) return 'Just now';
+    try {
+      final date = DateTime.tryParse(raw);
+      if (date == null) return raw;
+      final local = date.toLocal();
+      return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return raw;
     }
   }
 
@@ -148,13 +189,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAFAFF),
-        elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.onSurface),
+            icon: Icon(
+              Icons.menu,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -203,8 +245,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ],
                 ),
                 const Text(
-                  'Overview Dashboard',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                  'Dashboard',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
@@ -212,7 +254,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ),
       ),
       drawer: Drawer(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -241,7 +283,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.grid_view_outlined),
-              title: const Text('Overview'),
+              title: const Text('Dashboard'),
+              selected: _currentIndex == 0,
               onTap: () {
                 Navigator.pop(context);
                 setState(() => _currentIndex = 0);
@@ -249,15 +292,37 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.shield_outlined),
-              title: const Text('Users'),
+              title: const Text('Users Management'),
+              selected: _currentIndex == 1,
               onTap: () {
                 Navigator.pop(context);
                 setState(() => _currentIndex = 1);
               },
             ),
             ListTile(
+              leading: const Icon(
+                Icons.security_outlined,
+                color: AppColors.primary,
+              ),
+              title: const Text(
+                'System Audit Logs',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AdminAuditLogsScreen(accessToken: widget.accessToken),
+                  ),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.storefront_outlined),
-              title: const Text('Market'),
+              title: const Text('Market Management'),
+              selected: _currentIndex == 2,
               onTap: () {
                 Navigator.pop(context);
                 setState(() => _currentIndex = 2);
@@ -265,7 +330,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('Draws'),
+              title: const Text('Draw Schedules'),
+              selected: _currentIndex == 3,
               onTap: () {
                 Navigator.pop(context);
                 setState(() => _currentIndex = 3);
@@ -274,6 +340,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ListTile(
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Settings'),
+              selected: _currentIndex == 4,
               onTap: () {
                 Navigator.pop(context);
                 setState(() => _currentIndex = 4);
@@ -299,7 +366,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
             selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'Overview',
+            label: 'Dashboard',
           ),
           NavigationDestination(
             icon: Icon(Icons.shield_outlined),
@@ -344,6 +411,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           const SizedBox(height: 16),
 
           // Core Infrastructure Status Card
+          const AppSectionHeader(title: 'System', tagline: 'Core'),
           AppCard(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -411,15 +479,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Investor & User Overview Header
-          const AppSectionHeader(
-            title: 'Investor & User Overview',
-            tagline: 'ANALYTICS',
-            action: Text(
-              'Synced 1m ago',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ),
+          // User Overview Header
+          const AppSectionHeader(title: 'User Overview', tagline: 'ANALYTICS'),
           const SizedBox(height: 12),
 
           // Stat Cards Grid (3 cards)
@@ -462,6 +523,149 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+
+          // Recent Audit Logs Section on Admin Dashboard
+          AppSectionHeader(
+            title: 'Recent System Audit Logs',
+            tagline: 'SECURITY & ACTIONS',
+            action: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AdminAuditLogsScreen(accessToken: widget.accessToken),
+                  ),
+                );
+              },
+              child: const Text(
+                'View All Logs →',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _recentAuditEvents.isEmpty
+              ? const AppEmptyState(
+                  icon: Icons.history_toggle_off_outlined,
+                  title: 'No Recent Audit Events',
+                  message: 'No administrator API actions recorded yet. Pull down to refresh.',
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _recentAuditEvents.length > 3
+                      ? 3
+                      : _recentAuditEvents.length,
+                  itemBuilder: (context, index) {
+                    final item = _recentAuditEvents[index];
+                    final action = item['action']?.toString() ?? 'SYSTEM_EVENT';
+                    final method = item['http_method']?.toString() ?? 'GET';
+                    final route = item['route']?.toString() ?? '/';
+                    final status = item['status_code'] as int? ?? 200;
+                    final occurredAt = _formatAuditTime(
+                      item['occurred_at']?.toString() ?? '',
+                    );
+
+                    AppBadgeType badgeType = (status >= 200 && status < 300)
+                        ? AppBadgeType.success
+                        : (status >= 400 && status < 500)
+                        ? AppBadgeType.warning
+                        : AppBadgeType.error;
+
+                    final actorUsername = (item['actor_username'] ?? '')
+                        .toString()
+                        .trim();
+                    final actorEmail = (item['actor_email'] ?? '')
+                        .toString()
+                        .trim();
+                    final adminName = actorUsername.isNotEmpty
+                        ? '@$actorUsername'
+                        : (actorEmail.isNotEmpty ? actorEmail : 'Admin');
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: AppCard(
+                        padding: const EdgeInsets.all(12),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AdminAuditLogsScreen(
+                                accessToken: widget.accessToken,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                method,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    action.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    'Admin: $adminName • $route • $occurredAt',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            AppBadge(
+                              label: 'HTTP $status',
+                              type: badgeType,
+                              isSmall: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ],
       ),
     );

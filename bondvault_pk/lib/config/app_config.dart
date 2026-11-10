@@ -2,7 +2,8 @@
 class AppConfig {
   // Base URL for the backend API.
   // Use http://10.0.2.2:8000 for Android emulator, or http://localhost:8000 for desktop/web.
-  static const String baseUrl = 'http://192.168.100.134:8000';
+  //static const String baseUrl = 'http://192.168.100.134:8000';
+  static const String baseUrl = 'http://192.168.100.104:8000';
 
   // System & Auth Endpoints
   static const String healthEndpoint = '/system/health';
@@ -22,4 +23,5 @@ class AppConfig {
   static const String drawScheduleEndpoint = '/user/drawlists/schedule';
   static const String userDrawlistsEndpoint = '/user/drawlists';
   static const String marketListingsEndpoint = '/user/market/listings';
+  static const String adminAuditEndpoint = '/admins/audit';
 }

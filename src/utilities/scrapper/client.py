@@ -1,11 +1,13 @@
 """Async HTTP client for prize bond draw-list pages and text results."""
 
 import asyncio
+import ssl
 from collections.abc import Sequence
 
 import httpx
 
 from ...configs import DRAW_LISTS_URL
+from ...logging import get_logger
 from .models import (
     PrizeBondDrawResult,
     PrizeBondResults,
@@ -17,6 +19,11 @@ from .parsers import (
     _parse_prize_numbers,
     _parse_result_links,
 )
+from .tls import create_scraper_ssl_context
+
+logger = get_logger()
+REQUEST_RETRIES = 3
+RETRY_DELAY_SECONDS = 0.5
 
 
 class PrizeBondClient:
@@ -28,7 +35,7 @@ class PrizeBondClient:
         draw_lists_url: str = DRAW_LISTS_URL,
         timeout: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
-        verify: bool = False,
+        verify: bool | ssl.SSLContext | None = None,
     ) -> None:
         self.draw_lists_url = draw_lists_url
         self.verify = verify
@@ -104,7 +111,7 @@ async def _fetch_drawlist_links(
     client: httpx.AsyncClient,
     draw_lists_url: str,
 ) -> dict[int, str]:
-    response = await client.get(draw_lists_url)
+    response = await _get_with_retries(client, draw_lists_url)
     response.raise_for_status()
     return _extract_drawlist_links(response.content, str(response.url))
 
@@ -113,7 +120,7 @@ async def _fetch_result_links(
     client: httpx.AsyncClient,
     drawlist_url: str,
 ) -> list[PrizeBondDrawResult]:
-    response = await client.get(drawlist_url)
+    response = await _get_with_retries(client, drawlist_url)
     response.raise_for_status()
     return _parse_result_links(response.content, str(response.url))
 
@@ -124,7 +131,7 @@ async def _fetch_text_result(
     result: PrizeBondDrawResult,
 ) -> PrizeBondTextResult:
     try:
-        response = await client.get(result.url)
+        response = await _get_with_retries(client, result.url)
         response.raise_for_status()
     except httpx.HTTPError as error:
         return _failed_text_result(denomination, result, str(error))
@@ -177,3 +184,28 @@ def _failed_text_result(
         third_prize_numbers=(),
         error=error,
     )
+
+
+async def _get_with_retries(
+    client: httpx.AsyncClient,
+    url: str,
+) -> httpx.Response:
+    """Retry transient transport failures without weakening TLS verification."""
+    for attempt in range(REQUEST_RETRIES):
+        try:
+            return await client.get(url)
+        except httpx.TransportError as error:
+            if attempt == REQUEST_RETRIES - 1:
+                raise
+            delay = RETRY_DELAY_SECONDS * (2**attempt)
+            logger.warning(
+                "Transient draw-list connection failure; retrying "
+                "(attempt=%s/%s, delay_seconds=%s, url=%s): %s",
+                attempt + 1,
+                REQUEST_RETRIES,
+                delay,
+                url,
+                error,
+            )
+            await asyncio.sleep(delay)
+    raise RuntimeError("The draw-list request retry loop exited unexpectedly.")

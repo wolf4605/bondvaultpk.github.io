@@ -7,12 +7,13 @@
 
 import asyncio
 import re
+import time
 from collections.abc import Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timezone
 from html.parser import HTMLParser
 from typing import TypedDict
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
@@ -23,8 +24,11 @@ from .models import (
     PrizeBondTextResult,
     ScheduledDraw,
 )
+from .tls import create_scraper_ssl_context
 
 logger = get_logger()
+REQUEST_RETRIES = 3
+RETRY_DELAY_SECONDS = 0.5
 
 SITE_URL = "https://prizebondpk.com/"
 SITEMAP_URL = urljoin(SITE_URL, "sitemap/")
@@ -171,8 +175,28 @@ def fetch_html(url: str, timeout: int = 30) -> str:
             "Accept": "text/html,application/xhtml+xml",
         },
     )
-    with urlopen(request, timeout=timeout) as response:
-        return response.read().decode("utf-8", "replace")
+    ssl_context = create_scraper_ssl_context()
+    for attempt in range(REQUEST_RETRIES):
+        try:
+            with urlopen(request, timeout=timeout, context=ssl_context) as response:
+                return response.read().decode("utf-8", "replace")
+        except HTTPError:
+            raise
+        except (URLError, OSError, TimeoutError) as error:
+            if attempt == REQUEST_RETRIES - 1:
+                raise
+            delay = RETRY_DELAY_SECONDS * (2**attempt)
+            logger.warning(
+                "Transient PrizeBondPK connection failure; retrying "
+                "(attempt=%s/%s, delay_seconds=%s, url=%s): %s",
+                attempt + 1,
+                REQUEST_RETRIES,
+                delay,
+                url,
+                error,
+            )
+            time.sleep(delay)
+    raise RuntimeError("The PrizeBondPK request retry loop exited unexpectedly.")
 
 
 def discover_site_urls(

@@ -75,6 +75,8 @@ class AdminAuditEvent(BaseModel):
     event_id: UUID
     occurred_at: datetime
     actor_admin_id: UUID | None
+    actor_username: str | None = None
+    actor_email: str | None = None
     action: str
     subject: str
     subject_id: str | None

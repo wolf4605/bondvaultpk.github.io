@@ -564,7 +564,7 @@ class _HomeTabState extends State<HomeTab> {
     VoidCallback onTap,
   ) {
     return AppCard(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       onTap: () {
         if (!isAllowed) {
           showAppToast(
@@ -579,35 +579,37 @@ class _HomeTabState extends State<HomeTab> {
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 1),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   maxLines: 1,
@@ -616,9 +618,10 @@ class _HomeTabState extends State<HomeTab> {
               ],
             ),
           ),
+          const SizedBox(width: 4),
           Icon(
             Icons.chevron_right,
-            size: 16,
+            size: 14,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ],

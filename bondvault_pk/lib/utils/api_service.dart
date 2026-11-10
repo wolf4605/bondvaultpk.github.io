@@ -24,6 +24,32 @@ class ApiService {
     );
   }
 
+  /// Fetch admin audit logs from GET /admins/audit
+  static Future<Map<String, dynamic>?> fetchAdminAuditLogs({
+    required String adminToken,
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.adminAuditEndpoint}?limit=$limit&offset=$offset',
+      );
+      final res = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $adminToken'},
+      );
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        } else if (decoded is List) {
+          return {'events': decoded, 'total': decoded.length};
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Fetch all bondlists for the user.
   static Future<Map<String, dynamic>?> fetchBondlists(
     String accessToken,

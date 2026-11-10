@@ -79,16 +79,24 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
-  Future<void> _blacklistUser(String userId, DateTime? durationUntil) async {
+  Future<void> _blacklistUser(
+    String userId,
+    DateTime? durationUntil, [
+    String? reason,
+  ]) async {
     setState(() {
       _loadingUserId = userId;
       _loadingAction = 'ban';
     });
 
     try {
-      final body = durationUntil != null
-          ? {'duration_until': durationUntil.toUtc().toIso8601String()}
-          : {};
+      final body = <String, dynamic>{};
+      if (durationUntil != null) {
+        body['duration_until'] = durationUntil.toUtc().toIso8601String();
+      }
+      if (reason != null && reason.trim().isNotEmpty) {
+        body['reason'] = reason.trim();
+      }
       final res = await http.post(
         Uri.parse('${AppConfig.baseUrl}/admins/users/$userId/blacklist'),
         headers: {
@@ -243,6 +251,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   void _showBlacklistDialog(BuildContext context, String userId) {
     String selectedPeriod = 'permanent ban';
+    final reasonController = TextEditingController();
     final periods = [
       '1 day',
       '3 day',
@@ -310,7 +319,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             ),
                             SizedBox(height: 2),
                             Text(
-                              'Select suspension duration for this account',
+                              'Select suspension duration and specify reason',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFFFECACA),
@@ -328,7 +337,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 ),
 
                 // Body
-                Padding(
+                SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,7 +351,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           color: Colors.grey,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -370,6 +379,24 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           );
                         }).toList(),
                       ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'REASON FOR SUSPENSION',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      AppTextField(
+                        controller: reasonController,
+                        maxLines: 2,
+                        labelText: 'Reason for suspension (optional)',
+                        hintText: 'e.g. Flagged for policy violation',
+                        prefixIcon: const Icon(Icons.description_outlined),
+                      ),
                       const SizedBox(height: 24),
                       AppButton(
                         label: 'Confirm Account Suspension',
@@ -394,7 +421,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           } else {
                             durationUntil = null;
                           }
-                          _blacklistUser(userId, durationUntil);
+                          final reason = reasonController.text.trim();
+                          _blacklistUser(
+                            userId,
+                            durationUntil,
+                            reason.isNotEmpty ? reason : null,
+                          );
                         },
                       ),
                     ],
@@ -533,7 +565,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 Expanded(
                   child: AppTextField(
                     controller: _searchController,
-                    hintText: 'Search by Name, CNIC, Mobile, or ID...',
+                    hintText: 'Search by Name, Email or Contact...',
                     prefixIcon: const Icon(Icons.search, color: Colors.grey),
                     onChanged: (val) => setState(() => _searchQuery = val),
                   ),
@@ -837,8 +869,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
-                                            children: const [
-                                              Text(
+                                            children: [
+                                              const Text(
                                                 'SUSPENSION REASON',
                                                 style: TextStyle(
                                                   fontSize: 9,
@@ -846,10 +878,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                                   color: AppColors.error,
                                                 ),
                                               ),
-                                              SizedBox(height: 2),
+                                              const SizedBox(height: 2),
                                               Text(
-                                                'Multiple failed CNIC verification attempts & flagged IP anomalies',
-                                                style: TextStyle(
+                                                (user['blacklist_reason'] ??
+                                                        user['reason'] ??
+                                                        'Account suspended by administrator.')
+                                                    .toString(),
+                                                style: const TextStyle(
                                                   fontSize: 11,
                                                   color: Color(0xFF991B1B),
                                                   height: 1.3,

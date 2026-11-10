@@ -16,34 +16,34 @@ class Responsive {
   static bool isLandscape(BuildContext context) =>
       orientation(context) == Orientation.landscape;
 
-  /// Scale size relative to reference screen width (375dp base) with clamping
+  /// Scale size relative to reference screen width (375dp base) with tight clamping
   static double w(
     BuildContext context,
     double size, {
-    double minScale = 0.85,
-    double maxScale = 1.3,
+    double minScale = 0.90,
+    double maxScale = 1.12,
   }) {
     final scale = (width(context) / 375.0).clamp(minScale, maxScale);
     return size * scale;
   }
 
-  /// Scale size relative to reference screen height (812dp base) with clamping
+  /// Scale size relative to reference screen height (812dp base) with tight clamping
   static double h(
     BuildContext context,
     double size, {
-    double minScale = 0.85,
-    double maxScale = 1.3,
+    double minScale = 0.90,
+    double maxScale = 1.12,
   }) {
     final scale = (height(context) / 812.0).clamp(minScale, maxScale);
     return size * scale;
   }
 
-  /// Relative font size (sp) clamped to prevent extreme text shrinking/stretching
+  /// Relative font size (sp) tightly clamped to guarantee consistent layout across mobile devices
   static double sp(
     BuildContext context,
     double size, {
-    double minScale = 0.88,
-    double maxScale = 1.25,
+    double minScale = 0.90,
+    double maxScale = 1.10,
   }) {
     final scale = (width(context) / 375.0).clamp(minScale, maxScale);
     return size * scale;

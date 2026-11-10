@@ -188,9 +188,12 @@ async def audit_admin_actions(
 
     payload = getattr(request.state, "admin_payload", None)
     is_admin_api_request = (
-        request.url.path == "/admins"
-        or request.url.path.startswith("/admins/")
-        or payload is not None
+        (
+            request.url.path == "/admins"
+            or request.url.path.startswith("/admins/")
+            or payload is not None
+        )
+        and request.method.upper() != "GET"
     )
     if is_admin_api_request:
         route_object = request.scope.get("route")

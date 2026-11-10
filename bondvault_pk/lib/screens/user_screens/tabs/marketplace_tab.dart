@@ -210,229 +210,230 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                        // Category Selector (Sell vs Buy)
-                        const Text(
-                          'Listing Category',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                          // Category Selector (Sell vs Buy)
+                          const Text(
+                            'Listing Category',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Center(
-                                  child: Text(
-                                    'SELL OFFER',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Center(
+                                    child: Text(
+                                      'SELL OFFER',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
+                                  selected: category == 'sell',
+                                  selectedColor: AppColors.primary,
+                                  labelStyle: TextStyle(
+                                    color: category == 'sell'
+                                        ? Colors.white
+                                        : AppColors.onSurface,
+                                  ),
+                                  onSelected: (sel) {
+                                    if (sel) {
+                                      setDialogState(() => category = 'sell');
+                                    }
+                                  },
                                 ),
-                                selected: category == 'sell',
-                                selectedColor: AppColors.primary,
-                                labelStyle: TextStyle(
-                                  color: category == 'sell'
-                                      ? Colors.white
-                                      : AppColors.onSurface,
-                                ),
-                                onSelected: (sel) {
-                                  if (sel) {
-                                    setDialogState(() => category = 'sell');
-                                  }
-                                },
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Center(
-                                  child: Text(
-                                    'BUY REQUEST',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ChoiceChip(
+                                  label: const Center(
+                                    child: Text(
+                                      'BUY REQUEST',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
+                                  selected: category == 'buy',
+                                  selectedColor: AppColors.secondary,
+                                  labelStyle: TextStyle(
+                                    color: category == 'buy'
+                                        ? Colors.white
+                                        : AppColors.onSurface,
+                                  ),
+                                  onSelected: (sel) {
+                                    if (sel) {
+                                      setDialogState(() => category = 'buy');
+                                    }
+                                  },
                                 ),
-                                selected: category == 'buy',
-                                selectedColor: AppColors.secondary,
-                                labelStyle: TextStyle(
-                                  color: category == 'buy'
-                                      ? Colors.white
-                                      : AppColors.onSurface,
-                                ),
-                                onSelected: (sel) {
-                                  if (sel) {
-                                    setDialogState(() => category = 'buy');
-                                  }
-                                },
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          const Text(
+                            'Listing Title',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        const Text(
-                          'Listing Title',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        AppTextField(
-                          controller: titleController,
-                          labelText: 'e.g. Rs. 750 Prize Bond (Series A)',
-                          prefixIcon: const Icon(Icons.title),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Listing title is required';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-
-                        const Text(
-                          'Asking Price (PKR)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                          const SizedBox(height: 6),
+                          AppTextField(
+                            controller: titleController,
+                            labelText: 'e.g. Rs. 750 Prize Bond (Series A)',
+                            prefixIcon: const Icon(Icons.title),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Listing title is required';
+                              }
+                              return null;
+                            },
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        AppTextField(
-                          controller: priceController,
-                          keyboardType: TextInputType.number,
-                          labelText: 'Price in Rs. (e.g. 750)',
-                          prefixIcon: const Icon(Icons.attach_money),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Price is required';
-                            }
-                            final p = int.tryParse(v.trim());
-                            if (p == null || p < 0) {
-                              return 'Must be a valid non-negative price';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
+                          const SizedBox(height: 14),
 
-                        const Text(
-                          'Description (Optional)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                          const Text(
+                            'Asking Price (PKR)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        AppTextField(
-                          controller: descController,
-                          maxLines: 3,
-                          labelText:
-                              'Additional bond details, serials or notes',
-                          hintText:
-                              'e.g. Clean series bond available in Lahore.',
-                          prefixIcon: const Icon(Icons.notes),
-                        ),
-                        const SizedBox(height: 24),
-
-                        AppButton(
-                          label: isEdit
-                              ? 'Update Listing'
-                              : 'Publish Market Listing',
-                          isLoading: isSubmitting,
-                          icon: Icon(
-                            isEdit ? Icons.save_outlined : Icons.publish,
-                            size: 18,
+                          const SizedBox(height: 6),
+                          AppTextField(
+                            controller: priceController,
+                            keyboardType: TextInputType.number,
+                            labelText: 'Price in Rs. (e.g. 750)',
+                            prefixIcon: const Icon(Icons.attach_money),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Price is required';
+                              }
+                              final p = int.tryParse(v.trim());
+                              if (p == null || p < 0) {
+                                return 'Must be a valid non-negative price';
+                              }
+                              return null;
+                            },
                           ),
-                          onPressed: () async {
-                            if (formKey.currentState!.validate()) {
-                              setDialogState(() => isSubmitting = true);
-                              try {
-                                final title = titleController.text.trim();
-                                final price = int.parse(
-                                  priceController.text.trim(),
-                                );
-                                final desc = descController.text.trim().isEmpty
-                                    ? null
-                                    : descController.text.trim();
+                          const SizedBox(height: 14),
 
-                                final res = isEdit
-                                    ? await ApiService.updateMarketListing(
-                                        accessToken: widget.accessToken,
-                                        listingId: listing!['id'].toString(),
-                                        title: title,
-                                        price: price,
-                                        category: category,
-                                        description: desc,
-                                      )
-                                    : await ApiService.createMarketListing(
-                                        accessToken: widget.accessToken,
-                                        title: title,
-                                        price: price,
-                                        category: category,
-                                        description: desc,
-                                      );
+                          const Text(
+                            'Description (Optional)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          AppTextField(
+                            controller: descController,
+                            maxLines: 3,
+                            labelText:
+                                'Additional bond details, serials or notes',
+                            hintText:
+                                'e.g. Clean series bond available in Lahore.',
+                            prefixIcon: const Icon(Icons.notes),
+                          ),
+                          const SizedBox(height: 24),
 
-                                if (res.statusCode == 200 ||
-                                    res.statusCode == 201) {
-                                  _fetchListings();
-                                  if (!dialogContext.mounted) return;
-                                  Navigator.pop(dialogContext);
-                                  if (!mounted) return;
-                                  showAppNotificationSheet(
-                                    context: context,
-                                    title: isEdit
-                                        ? 'Listing Updated'
-                                        : 'Listing Published',
-                                    message: isEdit
-                                        ? 'Your marketplace listing has been updated successfully.'
-                                        : 'Your new bond offer is live on the marketplace!',
-                                    type: AppNotificationType.success,
+                          AppButton(
+                            label: isEdit
+                                ? 'Update Listing'
+                                : 'Publish Market Listing',
+                            isLoading: isSubmitting,
+                            icon: Icon(
+                              isEdit ? Icons.save_outlined : Icons.publish,
+                              size: 18,
+                            ),
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                setDialogState(() => isSubmitting = true);
+                                try {
+                                  final title = titleController.text.trim();
+                                  final price = int.parse(
+                                    priceController.text.trim(),
                                   );
-                                } else {
-                                  final data = jsonDecode(res.body);
-                                  final msg =
-                                      data['detail'] ?? 'Operation failed.';
-                                  if (!dialogContext.mounted) return;
+                                  final desc =
+                                      descController.text.trim().isEmpty
+                                      ? null
+                                      : descController.text.trim();
+
+                                  final res = isEdit
+                                      ? await ApiService.updateMarketListing(
+                                          accessToken: widget.accessToken,
+                                          listingId: listing!['id'].toString(),
+                                          title: title,
+                                          price: price,
+                                          category: category,
+                                          description: desc,
+                                        )
+                                      : await ApiService.createMarketListing(
+                                          accessToken: widget.accessToken,
+                                          title: title,
+                                          price: price,
+                                          category: category,
+                                          description: desc,
+                                        );
+
+                                  if (res.statusCode == 200 ||
+                                      res.statusCode == 201) {
+                                    _fetchListings();
+                                    if (!dialogContext.mounted) return;
+                                    Navigator.pop(dialogContext);
+                                    if (!mounted) return;
+                                    showAppNotificationSheet(
+                                      context: context,
+                                      title: isEdit
+                                          ? 'Listing Updated'
+                                          : 'Listing Published',
+                                      message: isEdit
+                                          ? 'Your marketplace listing has been updated successfully.'
+                                          : 'Your new bond offer is live on the marketplace!',
+                                      type: AppNotificationType.success,
+                                    );
+                                  } else {
+                                    final data = jsonDecode(res.body);
+                                    final msg =
+                                        data['detail'] ?? 'Operation failed.';
+                                    if (!dialogContext.mounted) return;
+                                    showAppToast(
+                                      dialogContext,
+                                      msg.toString(),
+                                      type: AppNotificationType.error,
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (!mounted) return;
                                   showAppToast(
-                                    dialogContext,
-                                    msg.toString(),
+                                    context,
+                                    'Error: $e',
                                     type: AppNotificationType.error,
                                   );
-                                }
-                              } catch (e) {
-                                if (!mounted) return;
-                                showAppToast(
-                                  context,
-                                  'Error: $e',
-                                  type: AppNotificationType.error,
-                                );
-                              } finally {
-                                if (dialogContext.mounted) {
-                                  setDialogState(() => isSubmitting = false);
+                                } finally {
+                                  if (dialogContext.mounted) {
+                                    setDialogState(() => isSubmitting = false);
+                                  }
                                 }
                               }
-                            }
-                          },
-                        ),
-                      ],
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
@@ -663,6 +664,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                                 return _buildListingCard(item, isMine: false);
                               },
                             ),
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
@@ -710,6 +712,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                                 return _buildListingCard(item, isMine: true);
                               },
                             ),
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
@@ -904,7 +907,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                 children: [
                   Row(
                     children: [
-                      // Avatar Pod with Checkmark
+                      // Avatar Pod
                       Stack(
                         alignment: Alignment.bottomRight,
                         children: [
@@ -920,18 +923,6 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                                 fontWeight: FontWeight.w900,
                                 color: Colors.white,
                               ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.check_circle,
-                              size: 12,
-                              color: Color(0xFF10B981),
                             ),
                           ),
                         ],
