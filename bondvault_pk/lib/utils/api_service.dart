@@ -242,12 +242,14 @@ class ApiService {
     return null;
   }
 
-  /// Fetch available user draw lists from GET /user/drawlists
-  static Future<List<dynamic>?> fetchUserDrawlists(String accessToken) async {
+  /// Fetch available draw lists from GET /user/drawlists (User) or GET /drawlists (Admin)
+  static Future<List<dynamic>?> fetchUserDrawlists(
+    String accessToken, {
+    bool isAdmin = false,
+  }) async {
     try {
-      final uri = Uri.parse(
-        '${AppConfig.baseUrl}${AppConfig.userDrawlistsEndpoint}',
-      );
+      final endpoint = isAdmin ? '/drawlists' : AppConfig.userDrawlistsEndpoint;
+      final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
       final res = await http.get(
         uri,
         headers: {'Authorization': 'Bearer $accessToken'},
@@ -597,6 +599,39 @@ class ApiService {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(body),
+      );
+      handleApiResponse(res);
+      return res;
+    } catch (e) {
+      handleNetworkError();
+      rethrow;
+    }
+  }
+
+  /// Import a new gazette drawlist via POST /drawlists
+  static Future<http.Response> importDrawlist({
+    required String accessToken,
+    required int denomination,
+    required String drawDate,
+    required List<String> firstPrizeBonds,
+    required List<String> secondPrizeBonds,
+    required List<String> thirdPrizeBonds,
+  }) async {
+    try {
+      final uri = Uri.parse('${AppConfig.baseUrl}/drawlists');
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'denomination': denomination,
+          'draw_date': drawDate,
+          'first_prize_numbers': firstPrizeBonds,
+          'second_prize_numbers': secondPrizeBonds,
+          'third_prize_numbers': thirdPrizeBonds,
+        }),
       );
       handleApiResponse(res);
       return res;

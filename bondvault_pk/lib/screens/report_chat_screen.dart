@@ -87,6 +87,21 @@ class _ReportChatScreenState extends State<ReportChatScreen> {
     });
   }
 
+  String _formatChatTime(String rawDate) {
+    if (rawDate.isEmpty) return '';
+    try {
+      final dt = DateTime.tryParse(rawDate);
+      if (dt == null) return rawDate;
+      final local = dt.toLocal();
+      final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+      final minute = local.minute.toString().padLeft(2, '0');
+      final period = local.hour >= 12 ? 'pm' : 'am';
+      return '$hour:$minute $period';
+    } catch (_) {
+      return rawDate;
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
@@ -151,6 +166,209 @@ class _ReportChatScreenState extends State<ReportChatScreen> {
     } catch (_) {}
   }
 
+  Widget _buildMessageBubble(Map<String, dynamic> item) {
+    final senderType = item['sender_type']?.toString().toLowerCase() ?? 'user';
+    final senderName = item['sender_name']?.toString() ?? 'User';
+    final messageText = item['message']?.toString() ?? '';
+    final createdAt = item['created_at']?.toString() ?? '';
+    final formattedTime = _formatChatTime(createdAt);
+
+    final isAdminMsg = senderType == 'admin';
+
+    if (isAdminMsg) {
+      // Support / Staff Message - Left Aligned
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Left Avatar Icon
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary, width: 1.8),
+              ),
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFD1FAE5),
+                child: Icon(
+                  Icons.smart_toy_outlined,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Message Bubble
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: Responsive.maxContentWidth(context) * 0.72,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEFEFEF),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(4),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              senderName,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'STAFF',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          messageText,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF1F2937),
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (formattedTime.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Text(
+                        formattedTime,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // User Message - Right Aligned
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Message Bubble
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: Responsive.maxContentWidth(context) * 0.72,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                    child: Text(
+                      messageText,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  if (formattedTime.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Text(
+                        formattedTime,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Right Avatar Icon
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary, width: 1.8),
+              ),
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFD1FAE5),
+                child: Icon(Icons.person, size: 20, color: AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final subject = widget.report['subject']?.toString() ?? 'Support Ticket';
@@ -168,7 +386,7 @@ class _ReportChatScreenState extends State<ReportChatScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Column(
           children: [
@@ -279,119 +497,11 @@ class _ReportChatScreenState extends State<ReportChatScreen> {
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 12,
+                      vertical: 16,
                     ),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
-                      final item = _messages[index];
-                      final senderType =
-                          item['sender_type']?.toString().toLowerCase() ??
-                          'user';
-                      final senderName =
-                          item['sender_name']?.toString() ?? 'User';
-                      final messageText = item['message']?.toString() ?? '';
-                      final createdAt = item['created_at']?.toString() ?? '';
-
-                      final isAdminMsg = senderType == 'admin';
-
-                      return Align(
-                        alignment: isAdminMsg
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth:
-                                Responsive.maxContentWidth(context) * 0.78,
-                          ),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isAdminMsg
-                                ? const Color(0xFF064E3B)
-                                : AppColors.primary,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(isAdminMsg ? 2 : 16),
-                              bottomRight: Radius.circular(isAdminMsg ? 16 : 2),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    senderName,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                  if (isAdminMsg) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                        vertical: 1,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        'STAFF',
-                                        style: TextStyle(
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w900,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                messageText,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                  height: 1.3,
-                                ),
-                              ),
-                              if (createdAt.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    createdAt.length >= 16
-                                        ? createdAt
-                                              .substring(0, 16)
-                                              .replaceAll('T', ' ')
-                                        : createdAt,
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white54,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
+                      return _buildMessageBubble(_messages[index]);
                     },
                   ),
           ),
@@ -420,14 +530,14 @@ class _ReportChatScreenState extends State<ReportChatScreen> {
           else
             Container(
               padding: EdgeInsets.fromLTRB(
-                16,
+                12,
                 8,
-                16,
+                12,
                 MediaQuery.paddingOf(context).bottom + 8,
               ),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceCard,
-                boxShadow: const [
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
                     blurRadius: 8,
@@ -437,41 +547,85 @@ class _ReportChatScreenState extends State<ReportChatScreen> {
               ),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.attach_file_rounded,
+                      color: Colors.grey.shade500,
+                    ),
+                    onPressed: () {
+                      showAppToast(
+                        context,
+                        'Attachments feature coming soon.',
+                        type: AppNotificationType.info,
+                      );
+                    },
+                  ),
                   Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: const InputDecoration(
-                        hintText: 'Type your message...',
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _messageController,
+                              decoration: const InputDecoration(
+                                hintText: 'Message',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
+                                ),
+                                border: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                              ),
+                              maxLines: null,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          Icon(
+                            Icons.sentiment_satisfied_alt_outlined,
+                            color: Colors.grey.shade400,
+                            size: 22,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filled(
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                  GestureDetector(
+                    onTap: _sendMessage,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: _isSending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                      ),
                     ),
-                    icon: _isSending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.send_rounded, size: 20),
-                    onPressed: _sendMessage,
                   ),
                 ],
               ),

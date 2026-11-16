@@ -18,7 +18,11 @@ from starlette.exceptions import HTTPException
 
 from .. import models, payloads, responses
 from ..database import DB
-from ..services.email_service import send_user_action_email
+from ..services.email_service import (
+    send_ticket_closed_email,
+    send_ticket_created_email,
+    send_user_action_email,
+)
 from ..utilities.auth_dependencies import get_current_admin, get_current_user
 
 logger = logging.getLogger("application.audit")
@@ -71,6 +75,22 @@ async def create_user_report(
             sender_name,
             payload.content.strip(),
         )
+
+    # Send email notification to user about the new ticket
+    async def _send_creation_email():
+        try:
+            await send_ticket_created_email(
+                user.email,
+                user.username,
+                str(report["id"]),
+                payload.category.strip().upper(),
+                payload.subject.strip(),
+                payload.content.strip(),
+            )
+        except Exception:
+            logger.exception("ticket creation email notification failed")
+
+    asyncio.create_task(_send_creation_email())
 
     res_dict = dict(report)
     res_dict["message_count"] = 1
@@ -316,7 +336,7 @@ async def update_report_status(
     """Update report ticket status ('closed', 'in_progress', 'open')."""
     report = await DB.fetchrow(
         """
-        SELECT r."id", r."subject", u."email", u."username"
+        SELECT r."id", r."subject", r."category", u."email", u."username"
         FROM "reports" AS r
         JOIN "users" AS u ON u."id" = r."reported_by"
         WHERE r."id" = $1
@@ -328,9 +348,6 @@ async def update_report_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Support report ticket not found.",
         )
-
-    closed_at = "CURRENT_TIMESTAMP" if payload.status == "closed" else "NULL"
-    closed_by_val = admin.id if payload.status == "closed" else None
 
     if payload.status == "closed":
         await DB.execute(
@@ -356,12 +373,21 @@ async def update_report_status(
     # Notify user via email on ticket resolution/status change
     async def _send_email():
         try:
-            await send_user_action_email(
-                report["email"],
-                report["username"],
-                "support ticket status update",
-                f"Your support ticket '{report['subject']}' status was updated to '{payload.status.upper()}'.",
-            )
+            if payload.status == "closed":
+                await send_ticket_closed_email(
+                    report["email"],
+                    report["username"],
+                    str(report["id"]),
+                    report["category"].upper(),
+                    report["subject"],
+                )
+            else:
+                await send_user_action_email(
+                    report["email"],
+                    report["username"],
+                    "support ticket status update",
+                    f"Your support ticket '{report['subject']}' status was updated to '{payload.status.upper()}'.",
+                )
         except Exception:
             logger.exception("ticket status update email failed")
 

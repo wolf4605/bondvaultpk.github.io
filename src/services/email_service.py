@@ -180,3 +180,45 @@ async def send_password_recovery_email(recipient: EmailStr, code: str) -> None:
         {"code": code},
     )
     await send_email(recipient, subject, body)
+
+
+async def send_ticket_created_email(
+    recipient: EmailStr,
+    username: str,
+    ticket_id: str,
+    category: str,
+    title: str,
+    details: str,
+) -> None:
+    """Notify a user that their support ticket was created."""
+    subject, body = _render_mail_template(
+        "ticket_created",
+        {
+            "username": username,
+            "ticket_id": ticket_id,
+            "category": category,
+            "title": title,
+            "details": details,
+        },
+    )
+    await send_email(recipient, subject, body)
+
+
+async def send_ticket_closed_email(
+    recipient: EmailStr,
+    username: str,
+    ticket_id: str,
+    category: str,
+    title: str,
+) -> None:
+    """Notify a user that their support ticket has been closed."""
+    subject, body = _render_mail_template(
+        "ticket_closed",
+        {
+            "username": username,
+            "ticket_id": ticket_id,
+            "category": category,
+            "title": title,
+        },
+    )
+    await send_email(recipient, subject, body)

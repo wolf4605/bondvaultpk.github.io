@@ -1,0 +1,9 @@
+Subject: Support Ticket #$ticket_id Closed - BondVault PK
+
+Hello $username,
+
+Your support report ticket #$ticket_id ('$title') under category '$category' has been marked as closed/resolved by our support team.
+
+If you have any further questions or require additional assistance, you can open a new support ticket anytime from the BondVault PK app.
+
+Thank you for choosing BondVault PK.

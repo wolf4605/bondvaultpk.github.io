@@ -145,6 +145,25 @@ class _DrawDetailScreenState extends State<DrawDetailScreen> {
     }
   }
 
+  int _getDefaultPrizeAmount(int denomination, int position) {
+    switch (denomination) {
+      case 100:
+        return position == 1 ? 700000 : (position == 2 ? 200000 : 1000);
+      case 200:
+        return position == 1 ? 750000 : (position == 2 ? 250000 : 1250);
+      case 750:
+        return position == 1 ? 1500000 : (position == 2 ? 500000 : 9300);
+      case 1500:
+        return position == 1 ? 3000000 : (position == 2 ? 1000000 : 18500);
+      case 25000:
+        return position == 1 ? 30000000 : (position == 2 ? 10000000 : 300000);
+      case 40000:
+        return position == 1 ? 80000000 : (position == 2 ? 30000000 : 500000);
+      default:
+        return position == 1 ? 1500000 : (position == 2 ? 500000 : 9300);
+    }
+  }
+
   Future<void> _showWinnerDialog([Map<String, dynamic>? winnerItem]) async {
     final isEdit = winnerItem != null;
     final bondCtrl = TextEditingController(
@@ -277,24 +296,41 @@ class _DrawDetailScreenState extends State<DrawDetailScreen> {
                           },
                         ),
                         const SizedBox(height: 14),
-                        const Text(
-                          'PRIZE AMOUNT (PKR)',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        AppTextField(
-                          controller: amountCtrl,
-                          keyboardType: TextInputType.number,
-                          labelText: 'Winning Prize Amount (Rs.)',
-                          prefixIcon: const Icon(Icons.money),
-                          validator: (v) =>
-                              (v == null || int.tryParse(v.trim()) == null)
-                              ? 'Valid amount required'
-                              : null,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer.withValues(
+                              alpha: 0.1,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Official Prize Amount:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              Text(
+                                'Rs. ${formatNumber(_getDefaultPrizeAmount(widget.denomination, selectedRank))}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 24),
                         AppButton(
@@ -310,7 +346,10 @@ class _DrawDetailScreenState extends State<DrawDetailScreen> {
                             if (!formKey.currentState!.validate()) return;
                             setDialogState(() => isSubmitting = true);
                             try {
-                              final amount = int.parse(amountCtrl.text.trim());
+                              final amount = _getDefaultPrizeAmount(
+                                widget.denomination,
+                                selectedRank,
+                              );
                               final bondNo = bondCtrl.text.trim();
                               http.Response res;
 

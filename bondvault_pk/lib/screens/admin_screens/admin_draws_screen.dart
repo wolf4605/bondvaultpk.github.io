@@ -177,6 +177,417 @@ class _AdminDrawsScreenState extends State<AdminDrawsScreen>
     );
   }
 
+  int _getDefaultPrize(int denomination, int position) {
+    switch (denomination) {
+      case 100:
+        return position == 1 ? 700000 : (position == 2 ? 200000 : 1000);
+      case 200:
+        return position == 1 ? 750000 : (position == 2 ? 250000 : 1250);
+      case 750:
+        return position == 1 ? 1500000 : (position == 2 ? 500000 : 9300);
+      case 1500:
+        return position == 1 ? 3000000 : (position == 2 ? 1000000 : 18500);
+      case 25000:
+        return position == 1 ? 30000000 : (position == 2 ? 10000000 : 300000);
+      case 40000:
+        return position == 1 ? 80000000 : (position == 2 ? 30000000 : 500000);
+      default:
+        return position == 1 ? 1500000 : (position == 2 ? 500000 : 9300);
+    }
+  }
+
+  Future<void> _showImportGazetteDialog() async {
+    int selectedDenom = 750;
+    final dateCtrl = TextEditingController(
+      text: DateTime.now().toString().substring(0, 10),
+    );
+    final firstPrizeCtrl = TextEditingController();
+    final secondPrizeCtrl = TextEditingController();
+    final thirdPrizeCtrl = TextEditingController();
+
+    final firstPrizeAmountCtrl = TextEditingController(text: '1500000');
+    final secondPrizeAmountCtrl = TextEditingController(text: '500000');
+    final thirdPrizeAmountCtrl = TextEditingController(text: '9300');
+
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+
+    List<String> parseBonds(String raw) {
+      return raw
+          .replaceAll('\n', ',')
+          .replaceAll(' ', ',')
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .map((s) => s.padLeft(6, '0'))
+          .toList();
+    }
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Responsive.maxContentWidth(context),
+              maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+            ),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF003527), Color(0xFF064E3B)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.note_add_outlined,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Import Gazette Drawlist',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Upload official prize draw results data',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFFD1FAE5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                          onPressed: () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'DENOMINATION',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<int>(
+                            initialValue: selectedDenom,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              prefixIcon: Icon(Icons.money),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 100,
+                                child: Text('Rs. 100 Prize Bond'),
+                              ),
+                              DropdownMenuItem(
+                                value: 200,
+                                child: Text('Rs. 200 Prize Bond'),
+                              ),
+                              DropdownMenuItem(
+                                value: 750,
+                                child: Text('Rs. 750 Prize Bond'),
+                              ),
+                              DropdownMenuItem(
+                                value: 1500,
+                                child: Text('Rs. 1,500 Prize Bond'),
+                              ),
+                              DropdownMenuItem(
+                                value: 25000,
+                                child: Text('Rs. 25,000 Premium Bond'),
+                              ),
+                              DropdownMenuItem(
+                                value: 40000,
+                                child: Text('Rs. 40,000 Premium Bond'),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) {
+                                setDialogState(() {
+                                  selectedDenom = v;
+                                  firstPrizeAmountCtrl.text = _getDefaultPrize(
+                                    v,
+                                    1,
+                                  ).toString();
+                                  secondPrizeAmountCtrl.text = _getDefaultPrize(
+                                    v,
+                                    2,
+                                  ).toString();
+                                  thirdPrizeAmountCtrl.text = _getDefaultPrize(
+                                    v,
+                                    3,
+                                  ).toString();
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          const Text(
+                            'DRAW DATE (YYYY-MM-DD)',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          AppTextField(
+                            controller: dateCtrl,
+                            labelText: 'Draw Date (e.g. 2026-11-15)',
+                            prefixIcon: const Icon(
+                              Icons.calendar_today_outlined,
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().length < 10)
+                                ? 'Valid date YYYY-MM-DD required'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          const Text(
+                            '1ST PRIZE DETAILS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: AppTextField(
+                                  controller: firstPrizeCtrl,
+                                  labelText: '1st Prize bond #',
+                                  prefixIcon: const Icon(
+                                    Icons.emoji_events_outlined,
+                                  ),
+                                  validator: (v) =>
+                                      (v == null || parseBonds(v).isEmpty)
+                                      ? 'Bond #'
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: AppTextField(
+                                  controller: firstPrizeAmountCtrl,
+                                  keyboardType: TextInputType.number,
+                                  labelText: '1st Amount (Rs.)',
+                                  prefixIcon: const Icon(Icons.money),
+                                  validator: (v) =>
+                                      (v == null ||
+                                          int.tryParse(v.trim()) == null)
+                                      ? 'Amount'
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+
+                          const Text(
+                            '2ND PRIZE DETAILS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: AppTextField(
+                                  controller: secondPrizeCtrl,
+                                  labelText:
+                                      '2nd Prize bond #s (comma separated)',
+                                  prefixIcon: const Icon(
+                                    Icons.emoji_events_outlined,
+                                  ),
+                                  validator: (v) =>
+                                      (v == null || parseBonds(v).isEmpty)
+                                      ? 'Bond #s'
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: AppTextField(
+                                  controller: secondPrizeAmountCtrl,
+                                  keyboardType: TextInputType.number,
+                                  labelText: '2nd Amount (Rs.)',
+                                  prefixIcon: const Icon(Icons.money),
+                                  validator: (v) =>
+                                      (v == null ||
+                                          int.tryParse(v.trim()) == null)
+                                      ? 'Amount'
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+
+                          const Text(
+                            '3RD PRIZE DETAILS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          AppTextField(
+                            controller: thirdPrizeAmountCtrl,
+                            keyboardType: TextInputType.number,
+                            labelText: '3rd Prize Amount per bond (Rs.)',
+                            prefixIcon: const Icon(Icons.money),
+                            validator: (v) =>
+                                (v == null || int.tryParse(v.trim()) == null)
+                                ? 'Amount'
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+                          AppTextField(
+                            controller: thirdPrizeCtrl,
+                            labelText: '3rd Prize bond numbers (comma/space separated)',
+                            prefixIcon: const Icon(Icons.emoji_events_outlined),
+                            maxLines: 3,
+                            validator: (v) =>
+                                (v == null || parseBonds(v).isEmpty)
+                                ? 'At least one 3rd prize bond required'
+                                : null,
+                          ),
+                          const SizedBox(height: 24),
+
+                          AppButton(
+                            label: 'Import & Save Gazette',
+                            isLoading: isSubmitting,
+                            icon: const Icon(
+                              Icons.upload_file_outlined,
+                              size: 18,
+                            ),
+                            onPressed: () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setDialogState(() => isSubmitting = true);
+
+                              final firsts = parseBonds(firstPrizeCtrl.text);
+                              final seconds = parseBonds(secondPrizeCtrl.text);
+                              final thirds = parseBonds(thirdPrizeCtrl.text);
+
+                              try {
+                                final res = await ApiService.importDrawlist(
+                                  accessToken: widget.accessToken,
+                                  denomination: selectedDenom,
+                                  drawDate: dateCtrl.text.trim(),
+                                  firstPrizeBonds: firsts,
+                                  secondPrizeBonds: seconds,
+                                  thirdPrizeBonds: thirds,
+                                );
+
+                                if (res.statusCode == 201 ||
+                                    res.statusCode == 200) {
+                                  _fetchData();
+                                  if (dialogContext.mounted) {
+                                    Navigator.pop(dialogContext);
+                                  }
+                                  if (mounted) {
+                                    showAppNotificationSheet(
+                                      context: this.context,
+                                      title: 'Gazette Imported Successfully',
+                                      message:
+                                          'Rs. $selectedDenom gazette drawlist dated ${dateCtrl.text.trim()} imported with ${firsts.length + seconds.length + thirds.length} winning bonds.',
+                                      type: AppNotificationType.success,
+                                    );
+                                  }
+                                } else {
+                                  final data = jsonDecode(res.body);
+                                  if (dialogContext.mounted) {
+                                    setDialogState(() => isSubmitting = false);
+                                    showAppToast(
+                                      dialogContext,
+                                      data['detail'] ??
+                                          'Failed to import gazette.',
+                                      type: AppNotificationType.error,
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (dialogContext.mounted) {
+                                  setDialogState(() => isSubmitting = false);
+                                  showAppToast(
+                                    dialogContext,
+                                    'Error: $e',
+                                    type: AppNotificationType.error,
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      dateCtrl.dispose();
+      firstPrizeCtrl.dispose();
+      secondPrizeCtrl.dispose();
+      thirdPrizeCtrl.dispose();
+    });
+  }
+
   Future<void> _showAddScheduleDialog() async {
     int selectedDenom = 750;
     DateTime? selectedDate = DateTime.now().add(const Duration(days: 30));
@@ -516,15 +927,21 @@ class _AdminDrawsScreenState extends State<AdminDrawsScreen>
         controller: _tabController,
         children: [_buildDrawlistsTab(), _buildSchedulesTab()],
       ),
-      floatingActionButton: _tabController.index == 1
-          ? FloatingActionButton.extended(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              onPressed: _showAddScheduleDialog,
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Add Schedule'),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        onPressed: _tabController.index == 0
+            ? _showImportGazetteDialog
+            : _showAddScheduleDialog,
+        icon: Icon(
+          _tabController.index == 0
+              ? Icons.note_add_outlined
+              : Icons.add_circle_outline,
+        ),
+        label: Text(
+          _tabController.index == 0 ? 'Import Gazette' : 'Add Schedule',
+        ),
+      ),
     );
   }
 

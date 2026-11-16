@@ -64,8 +64,8 @@ class AppNotificationSheet extends StatelessWidget {
       padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
       child: SafeArea(
         top: false,
-        child: Center(
-          widthFactor: 1,
+        child: Align(
+          alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: Responsive.maxContentWidth(context),

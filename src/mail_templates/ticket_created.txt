@@ -1,0 +1,13 @@
+Subject: Support Ticket #$ticket_id Created - BondVault PK
+
+Hello $username,
+
+Your support report ticket has been opened successfully.
+
+Ticket Details:
+- Ticket ID: $ticket_id
+- Category: $category
+- Title / Subject: $title
+- Issue Details: $details
+
+Our BondVault PK support team will review your inquiry and respond shortly. You can view your ticket and chat with support staff directly inside the app.

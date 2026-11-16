@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../config/app_theme.dart';
 import '../../../config/responsive.dart';
@@ -1114,7 +1115,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                 ],
               ),
             ] else ...[
-              // Single Chat on WhatsApp Button (Matching image style)
+              // Single Copy Contact Button
               SizedBox(
                 height: 44,
                 child: ElevatedButton.icon(
@@ -1127,22 +1128,27 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
+                    if (sellerPhone.isNotEmpty) {
+                      await Clipboard.setData(ClipboardData(text: sellerPhone));
+                    }
+                    if (!mounted) return;
                     showAppNotificationSheet(
                       context: context,
-                      title: 'Contact Seller Info',
+                      title: 'Contact Copied!',
                       message:
+                          'Seller contact ($sellerPhone) copied to clipboard!\n\n'
                           'Seller: $sellerDisplayName ($sellerHandle)\n\n'
                           '📱 Phone / WhatsApp:\n$sellerPhone\n\n'
                           '✉️ Email Address:\n$sellerMail\n\n'
                           'Listing: $title (Rs. ${formatNumber(price)})',
-                      type: AppNotificationType.info,
+                      type: AppNotificationType.success,
                       dismissLabel: 'Close Details',
                     );
                   },
-                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                  icon: const Icon(Icons.copy_outlined, size: 16),
                   label: const Text(
-                    'Chat on WhatsApp',
+                    'Copy Contact',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                 ),

@@ -11,7 +11,7 @@ import '../widgets/widgets.dart';
 
 class SystemHealthMonitor {
   static Timer? _timer;
-  static bool _isChecking = false;
+  static Future<bool>? _inFlightCheck;
   static bool _sheetShown = false;
   static VoidCallback? onRetryCallback;
 
@@ -29,10 +29,15 @@ class SystemHealthMonitor {
   }
 
   /// Manually check health, returns true if healthy, false otherwise.
-  static Future<bool> checkHealth() async {
-    if (_isChecking) return false;
-    _isChecking = true;
+  static Future<bool> checkHealth() {
+    if (_inFlightCheck != null) {
+      return _inFlightCheck!;
+    }
+    _inFlightCheck = _doCheckHealth();
+    return _inFlightCheck!;
+  }
 
+  static Future<bool> _doCheckHealth() async {
     try {
       final uri = Uri.parse('${AppConfig.baseUrl}${AppConfig.healthEndpoint}');
       final res = await http.get(uri).timeout(const Duration(seconds: 5));
@@ -74,7 +79,7 @@ class SystemHealthMonitor {
       );
       return false;
     } finally {
-      _isChecking = false;
+      _inFlightCheck = null;
     }
   }
 
