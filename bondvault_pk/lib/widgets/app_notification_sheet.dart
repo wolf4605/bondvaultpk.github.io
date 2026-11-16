@@ -56,113 +56,119 @@ class AppNotificationSheet extends StatelessWidget {
         break;
     }
 
-    final verticalSpacer = isLandscape ? 12.0 : 20.0;
-    final iconSize = isLandscape ? 48.0 : 64.0;
-    final innerIconSize = isLandscape ? 26.0 : 34.0;
+    final verticalSpacer = isLandscape ? 10.0 : 16.0;
+    final iconSize = isLandscape ? 48.0 : 60.0;
+    final innerIconSize = isLandscape ? 26.0 : 32.0;
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: Responsive.maxContentWidth(context),
-          maxHeight: mediaQuery.size.height * 0.90,
-        ),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-            Responsive.w(context, 20),
-            Responsive.h(context, 10),
-            Responsive.w(context, 20),
-            Responsive.h(context, 24),
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceCard,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 20,
-                offset: Offset(0, -4),
+    return Padding(
+      padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          widthFactor: 1,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Responsive.maxContentWidth(context),
+              maxHeight: mediaQuery.size.height * 0.85,
+            ),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: Responsive.w(context, 20),
+                vertical: Responsive.h(context, 16),
               ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Container(
-                  width: Responsive.w(context, 40),
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceCard,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
                   ),
-                ),
-                SizedBox(height: verticalSpacer),
-                // Icon Badge
-                Container(
-                  width: iconSize,
-                  height: iconSize,
-                  decoration: BoxDecoration(
-                    color: iconBgColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: iconColor, size: innerIconSize),
-                ),
-                SizedBox(height: verticalSpacer),
-                // Title
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: Responsive.sp(context, 18),
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.onSurface,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                // Message
-                Text(
-                  message,
-                  style: TextStyle(
-                    fontSize: Responsive.sp(context, 13),
-                    color: AppColors.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: verticalSpacer + 4),
-                if (customAction != null) ...[
-                  customAction!,
-                  const SizedBox(height: 10),
                 ],
-                // Dismiss Button
-                SizedBox(
-                  width: double.infinity,
-                  height: Responsive.h(context, 48),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+              ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag handle
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      elevation: 0,
                     ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onDismiss?.call();
-                    },
-                    child: Text(
-                      dismissLabel,
+                    SizedBox(height: verticalSpacer),
+                    // Icon Badge
+                    Container(
+                      width: iconSize,
+                      height: iconSize,
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: iconColor, size: innerIconSize),
+                    ),
+                    SizedBox(height: verticalSpacer),
+                    // Title
+                    Text(
+                      title,
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: Responsive.sp(context, 15),
+                        fontSize: Responsive.sp(context, 18),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.onSurface,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    // Message
+                    Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: Responsive.sp(context, 13),
+                        color: AppColors.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: verticalSpacer + 4),
+                    if (customAction != null) ...[
+                      customAction!,
+                      const SizedBox(height: 10),
+                    ],
+                    // Dismiss Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onDismiss?.call();
+                        },
+                        child: Text(
+                          dismissLabel,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: Responsive.sp(context, 15),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -183,8 +189,10 @@ void showAppNotificationSheet({
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => AppNotificationSheet(
+    elevation: 0,
+    builder: (sheetContext) => AppNotificationSheet(
       title: title,
       message: message,
       type: type,
