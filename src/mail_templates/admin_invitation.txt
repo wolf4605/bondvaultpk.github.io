@@ -1,17 +1,14 @@
-Subject: Activate your BondVault PK administrator account
+Subject: Welcome to BondVault PK - Your Administrator Credentials
 
 Hello $username,
 
-An administrator account has been created for you.
+An administrator account ($role) has been created for you on BondVault PK.
+
+Here are your account credentials to sign in:
+
 Username: $username
 Email: $email
+Temporary Password: $password
 
-Set a password within $expiry_hours hours by sending a POST request to
-/admins/auth/activate with this JSON body:
-{
-  "email": "$email",
-  "token": "$token",
-  "new_password": "your new password (at least 12 characters)"
-}
-
-This activation token is single-use. Do not share it. No password was sent by email.
+Please sign in to your administrator dashboard and change your password as soon as possible.
+Do not share these credentials with anyone.

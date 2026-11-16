@@ -24,10 +24,7 @@ class AppEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryIconColor =
-        iconColor ??
-        (isDark ? const Color(0xFF80BEA6) : AppColors.primaryContainer);
+    final primaryIconColor = iconColor ?? AppColors.primaryContainer;
 
     final iconContainerSize = Responsive.w(context, 80);
     final iconSize = Responsive.w(context, 40);
@@ -55,7 +52,7 @@ class AppEmptyState extends StatelessWidget {
               style: TextStyle(
                 fontSize: Responsive.sp(context, 18),
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.onSurface,
+                color: AppColors.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -64,7 +61,7 @@ class AppEmptyState extends StatelessWidget {
               message,
               style: TextStyle(
                 fontSize: Responsive.sp(context, 13),
-                color: isDark ? Colors.white70 : AppColors.onSurfaceVariant,
+                color: AppColors.onSurfaceVariant,
                 height: 1.4,
               ),
               textAlign: TextAlign.center,

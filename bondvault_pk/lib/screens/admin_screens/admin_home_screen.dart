@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:bondvault_pk/screens/admin_screens/admin_draws_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +11,10 @@ import '../../utils/api_service.dart';
 import '../../widgets/widgets.dart';
 import '../login_screen.dart';
 import 'admin_audit_logs_screen.dart';
+import 'admin_management_screen.dart';
+import 'admin_market_screen.dart';
+import 'admin_reports_screen.dart';
+import 'admin_settings_screen.dart';
 import 'admin_users_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -168,6 +173,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('saved_username');
     await prefs.remove('saved_password');
+    await prefs.remove('cached_access_token');
+    await prefs.remove('cached_user_info');
 
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -176,13 +183,77 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required bool isSelected,
+    bool hasBadge = false,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        tileColor: isSelected
+            ? Theme.of(context).colorScheme.primaryContainer
+                  .withValues(alpha: 0.25)
+            : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        trailing: hasBadge
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  shape: BoxShape.circle,
+                ),
+              )
+            : isSelected
+            ? Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+              )
+            : null,
+        onTap: onTap,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final username = widget.adminInfo['username'] ?? 'Admin';
-    final email = widget.adminInfo['email'] ?? 'admin@bondvault.pk';
+    final firstName = widget.adminInfo['first_name']?.toString().trim() ?? '';
+    final lastName = widget.adminInfo['last_name']?.toString().trim() ?? '';
+    final username = widget.adminInfo['username']?.toString().trim() ?? 'Admin';
+    final email =
+        widget.adminInfo['email']?.toString().trim() ?? 'admin@bondvault.pk';
+
+    final fullName = '$firstName $lastName'.trim().isEmpty
+        ? username
+        : '$firstName $lastName'.trim();
+    final greetingName = firstName.isNotEmpty ? firstName : fullName;
 
     final List<Widget> adminViews = [
-      _buildOverviewView(),
+      _buildOverviewView(greetingName, fullName),
       _buildUserView(),
       _buildMarketView(),
       _buildDrawsView(),
@@ -245,9 +316,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     AppBadge.admin(),
                   ],
                 ),
-                const Text(
+                Text(
                   'Dashboard',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -255,106 +329,277 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ),
       ),
       drawer: Drawer(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        child: ListView(
-          padding: EdgeInsets.zero,
+        backgroundColor: Theme.of(context).cardColor,
+        child: Column(
           children: [
-            UserAccountsDrawerHeader(
+            // Drawer Header matching User Side
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.primary, AppColors.primaryContainer],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-              currentAccountPicture: const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.admin_panel_settings,
-                  size: 36,
-                  color: AppColors.primary,
-                ),
-              ),
-              accountName: Text(
-                username,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              accountEmail: Text(email),
-            ),
-            ListTile(
-              leading: const Icon(Icons.grid_view_outlined),
-              title: const Text('Dashboard'),
-              selected: _currentIndex == 0,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentIndex = 0);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shield_outlined),
-              title: const Text('Users Management'),
-              selected: _currentIndex == 1,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentIndex = 1);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.security_outlined,
-                color: AppColors.primary,
-              ),
-              title: const Text(
-                'System Audit Logs',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AdminAuditLogsScreen(accessToken: widget.accessToken),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Image.asset(
+                          'assets/logo.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Row(
+                        children: const [
+                          Text(
+                            'BondVault ',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'PK',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.secondaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.storefront_outlined),
-              title: const Text('Market Management'),
-              selected: _currentIndex == 2,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentIndex = 2);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today_outlined),
-              title: const Text('Draw Schedules'),
-              selected: _currentIndex == 3,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentIndex = 3);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings'),
-              selected: _currentIndex == 4,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentIndex = 4);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.error),
-              title: const Text(
-                'Logout',
-                style: TextStyle(color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          fullName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AppBadge.admin(),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '@$username • $email',
+                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 12),
+                  // Quick System Status Card
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondaryContainer.withValues(
+                                  alpha: 0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.person_outline,
+                                color: AppColors.secondaryContainer,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isLoadingStats ? '...' : '$_totalUsers Users',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Text(
+                          'System: Live',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF95D3BA),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              onTap: _logout,
+            ),
+            // Navigation Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 12,
+                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    child: Text(
+                      'ADMIN CONTROL PANEL',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.grid_view_outlined,
+                    title: 'Dashboard Overview',
+                    isSelected: _currentIndex == 0,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _currentIndex = 0);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.shield_outlined,
+                    title: 'Users Management',
+                    isSelected: _currentIndex == 1,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _currentIndex = 1);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.security_outlined,
+                    title: 'System Audit Logs',
+                    isSelected: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminAuditLogsScreen(
+                            accessToken: widget.accessToken,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.admin_panel_settings_outlined,
+                    title: 'Admin Accounts',
+                    isSelected: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminManagementScreen(
+                            accessToken: widget.accessToken,
+                            adminInfo: widget.adminInfo,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.storefront_outlined,
+                    title: 'Market Management',
+                    isSelected: _currentIndex == 2,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _currentIndex = 2);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.calendar_today_outlined,
+                    title: 'Draw Result & Schedules',
+                    isSelected: _currentIndex == 3,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _currentIndex = 3);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.support_agent_outlined,
+                    title: 'User Support Tickets',
+                    isSelected: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminReportsScreen(
+                            accessToken: widget.accessToken,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.settings_outlined,
+                    title: 'Admin Settings',
+                    isSelected: _currentIndex == 4,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _currentIndex = 4);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Drawer Footer Logout Button
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                border: Border(
+                  top: BorderSide(color: Theme.of(context).dividerColor),
+                ),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: AppButton(
+                  label: 'Log Out',
+                  variant: AppButtonVariant.danger,
+                  icon: const Icon(Icons.logout, size: 18),
+                  onPressed: _logout,
+                ),
+              ),
             ),
           ],
         ),
@@ -394,7 +639,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildOverviewView() {
+  Widget _buildOverviewView(String greetingName, String fullName) {
     final unverifiedCount = _usersList
         .where((u) => u['is_verified'] != true)
         .length;
@@ -406,7 +651,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         children: [
           // Top Console Banner
           AppSectionHeader(
-            title: 'Assalam-o-Alaikum, Admin',
+            title: 'Assalam-o-Alaikum, $greetingName',
             tagline: 'ADMIN CONTROL CONSOLE',
           ),
           const SizedBox(height: 16),
@@ -767,26 +1012,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildMarketView() {
-    return const AppEmptyState(
-      icon: Icons.storefront_outlined,
-      title: 'Market Management',
-      message: 'Manage marketplace offers and trade policy limits.',
-    );
+    return AdminMarketScreen(accessToken: widget.accessToken);
   }
 
   Widget _buildDrawsView() {
-    return const AppEmptyState(
-      icon: Icons.calendar_today_outlined,
-      title: 'Draws Management',
-      message: 'Configure SBP gazette sync and draw result uploads.',
-    );
+    return AdminDrawsScreen(accessToken: widget.accessToken);
   }
 
   Widget _buildSettingsView() {
-    return const AppEmptyState(
-      icon: Icons.settings_outlined,
-      title: 'Admin Settings',
-      message: 'System override policies, audit logs, and security settings.',
+    return AdminSettingsScreen(
+      accessToken: widget.accessToken,
+      adminInfo: widget.adminInfo,
+      onLogout: _logout,
     );
   }
 }

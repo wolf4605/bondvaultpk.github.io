@@ -229,3 +229,33 @@ class AdminMarketListingsResponse(BaseResponse):
 
     listings: list[AdminMarketListingInfo]
     total: int = Field(ge=0)
+
+
+class ReportMessageInfo(BaseModel):
+    """Details of a single chat message inside a report ticket."""
+
+    id: UUID
+    report_id: UUID
+    sender_id: UUID
+    sender_type: str
+    sender_name: str
+    message: str
+    created_at: datetime
+
+
+class ReportInfo(BaseModel):
+    """Support report ticket summary and metadata."""
+
+    id: UUID
+    reported_by: UUID
+    subject: str
+    category: str
+    content: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    closed_at: datetime | None = None
+    closed_by: UUID | None = None
+    reporter_username: str | None = None
+    reporter_email: str | None = None
+    message_count: int = 0

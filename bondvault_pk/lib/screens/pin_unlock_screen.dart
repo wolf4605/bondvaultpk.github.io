@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_theme.dart';
 import '../widgets/widgets.dart';
+import 'admin_screens/admin_home_screen.dart';
 import 'login_screen.dart';
 import 'user_screens/home_screen.dart';
 
@@ -10,12 +11,14 @@ class PinUnlockScreen extends StatefulWidget {
   final String accessToken;
   final Map<String, dynamic> userInfo;
   final String correctPin;
+  final bool isAdmin;
 
   const PinUnlockScreen({
     super.key,
     required this.accessToken,
     required this.userInfo,
     required this.correctPin,
+    this.isAdmin = false,
   });
 
   @override
@@ -51,15 +54,36 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
         'Vault unlocked',
         type: AppNotificationType.success,
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(
-            accessToken: widget.accessToken,
-            userInfo: widget.userInfo,
+
+      if (widget.accessToken.isEmpty || widget.userInfo.isEmpty) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+        return;
+      }
+
+      if (widget.isAdmin) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AdminHomeScreen(
+              accessToken: widget.accessToken,
+              adminInfo: widget.userInfo,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(
+              accessToken: widget.accessToken,
+              userInfo: widget.userInfo,
+            ),
+          ),
+        );
+      }
     } else {
       setState(() {
         _enteredPin = '';
@@ -77,7 +101,9 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('saved_username');
     await prefs.remove('saved_password');
-    await prefs.remove('app_pin');
+    await prefs.remove('cached_access_token');
+    await prefs.remove('cached_user_info');
+    // Note: Do NOT remove 'app_pin'! MPIN remains persistent even when signing out.
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
@@ -165,10 +191,11 @@ class _PinUnlockScreenState extends State<PinUnlockScreen> {
 
                 // Subtitle
                 const Text(
-                  'Enter your 4-digit security MPIN to decrypt\nyour registered prize bonds',
+                  'Enter your 4-digit security MPIN to unlock BondVault PK',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.onSurfaceVariant,
                     height: 1.4,
                   ),

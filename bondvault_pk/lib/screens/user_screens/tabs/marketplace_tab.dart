@@ -315,7 +315,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                             controller: priceController,
                             keyboardType: TextInputType.number,
                             labelText: 'Price in Rs. (e.g. 750)',
-                            prefixIcon: const Icon(Icons.attach_money),
+                            prefixIcon: const Icon(Icons.money),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
                                 return 'Price is required';
@@ -368,8 +368,8 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                                   );
                                   final desc =
                                       descController.text.trim().isEmpty
-                                          ? null
-                                          : descController.text.trim();
+                                      ? null
+                                      : descController.text.trim();
 
                                   final res = isEdit
                                       ? await ApiService.updateMarketListing(
@@ -391,40 +391,44 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                                   if (res.statusCode == 200 ||
                                       res.statusCode == 201) {
                                     _fetchListings();
-                                    if (!dialogContext.mounted) return;
-                                    Navigator.pop(dialogContext);
-                                    if (!mounted) return;
-                                    showAppNotificationSheet(
-                                      context: context,
-                                      title: isEdit
-                                          ? 'Listing Updated'
-                                          : 'Listing Published',
-                                      message: isEdit
-                                          ? 'Your marketplace listing has been updated successfully.'
-                                          : 'Your new bond offer is live on the marketplace!',
-                                      type: AppNotificationType.success,
-                                    );
+                                    if (dialogContext.mounted) {
+                                      Navigator.pop(dialogContext);
+                                    }
+                                    if (mounted) {
+                                      showAppNotificationSheet(
+                                        context: this.context,
+                                        title: isEdit
+                                            ? 'Listing Updated'
+                                            : 'Listing Published',
+                                        message: isEdit
+                                            ? 'Your marketplace listing has been updated successfully.'
+                                            : 'Your new bond offer is live on the marketplace!',
+                                        type: AppNotificationType.success,
+                                      );
+                                    }
                                   } else {
                                     final data = jsonDecode(res.body);
                                     final msg =
                                         data['detail'] ?? 'Operation failed.';
-                                    if (!dialogContext.mounted) return;
-                                    showAppToast(
-                                      dialogContext,
-                                      msg.toString(),
-                                      type: AppNotificationType.error,
-                                    );
+                                    if (dialogContext.mounted) {
+                                      setDialogState(
+                                        () => isSubmitting = false,
+                                      );
+                                      showAppToast(
+                                        dialogContext,
+                                        msg.toString(),
+                                        type: AppNotificationType.error,
+                                      );
+                                    }
                                   }
                                 } catch (e) {
-                                  if (!mounted) return;
-                                  showAppToast(
-                                    context,
-                                    'Error: $e',
-                                    type: AppNotificationType.error,
-                                  );
-                                } finally {
                                   if (dialogContext.mounted) {
                                     setDialogState(() => isSubmitting = false);
+                                    showAppToast(
+                                      dialogContext,
+                                      'Error: $e',
+                                      type: AppNotificationType.error,
+                                    );
                                   }
                                 }
                               }
@@ -442,9 +446,11 @@ class _MarketplaceTabState extends State<MarketplaceTab>
       ),
     );
 
-    titleController.dispose();
-    priceController.dispose();
-    descController.dispose();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      titleController.dispose();
+      priceController.dispose();
+      descController.dispose();
+    });
   }
 
   Future<void> _deleteListing(String listingId) async {
@@ -498,8 +504,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
       return const AppEmptyState(
         icon: Icons.storefront_outlined,
         title: 'Feature Locked',
-        message:
-            'Your account is currently under verification review. Marketplace trading will unlock automatically once approved.',
+        message: 'Your account is currently under verification review. Marketplace trading will unlock automatically once approved.',
       );
     }
 
@@ -667,8 +672,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                           ? const AppEmptyState(
                               icon: Icons.storefront_outlined,
                               title: 'No Market Listings Found',
-                              message:
-                                  'No active marketplace listings match your selected filter.',
+                              message: 'No active marketplace listings match your selected filter.',
                             )
                           : ListView.builder(
                               shrinkWrap: true,
@@ -716,8 +720,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                           ? const AppEmptyState(
                               icon: Icons.post_add_outlined,
                               title: 'No Listings Published Yet',
-                              message:
-                                  'Tap the + New Listing button below to post a prize bond buy or sell offer to the marketplace.',
+                              message: 'Tap the + New Listing button below to post a prize bond buy or sell offer to the marketplace.',
                             )
                           : ListView.builder(
                               shrinkWrap: true,
@@ -1140,10 +1143,7 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                   icon: const Icon(Icons.chat_bubble_outline, size: 16),
                   label: const Text(
                     'Chat on WhatsApp',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

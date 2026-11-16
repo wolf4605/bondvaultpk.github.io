@@ -41,6 +41,10 @@ from src.routers.drawlists import (
     router as draw_router,
     user_router as user_drawlists_router,
 )
+from src.routers.reports import (
+    admin_router as admin_reports_router,
+    user_router as user_reports_router,
+)
 from src.routers.system import router as system_router
 from src.routers.user import router as user_router
 from src.routers.user_auth import router as user_auth_router
@@ -85,6 +89,8 @@ app.include_router(user_router)
 app.include_router(draw_router)
 app.include_router(user_drawlists_router)
 app.include_router(system_router)
+app.include_router(user_reports_router)
+app.include_router(admin_reports_router)
 
 app.add_middleware(
     CORSMiddleware,

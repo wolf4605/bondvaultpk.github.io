@@ -15,12 +15,14 @@
 * Copyright© BondVault PK. All rights reserved.
 """
 
+import json
 from pathlib import Path
 
 from .. import models
 from ..configs import AdminDBConfigs
 from ..database import Database
 from ..logging import get_logger
+from ..utilities.auth import hash_password
 
 logger = get_logger()
 
@@ -109,15 +111,34 @@ class DB_initializor:
 
                 logger.info(f"Successfully executed [cyan]{schema_file[name]}[/].")
 
+        # Auto-migrate report schema for existing database instances
+        await self.__db.execute(
+            """
+            ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "category" VARCHAR(50) NOT NULL DEFAULT 'general';
+            ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "closed_at" TIMESTAMPTZ;
+            ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "closed_by" UUID REFERENCES "admins"("id") ON DELETE SET NULL;
+            ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "resolved_at" TIMESTAMPTZ;
+            ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "resolved_by" UUID REFERENCES "admins"("id") ON DELETE SET NULL;
+            ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+            CREATE TABLE IF NOT EXISTS "report_messages"(
+                "id" UUID PRIMARY KEY DEFAULT UUIDV7(),
+                "report_id" UUID NOT NULL REFERENCES "reports"("id") ON DELETE CASCADE,
+                "sender_id" UUID NOT NULL,
+                "sender_type" VARCHAR(10) NOT NULL CHECK ("sender_type" IN ('user', 'admin')),
+                "sender_name" VARCHAR(150) NOT NULL,
+                "message" TEXT NOT NULL,
+                "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
     async def __create_func_triggers(self):
         schema_dir = Path(__file__).resolve().parent.parent / "database" / "schema"
 
         index_schema = schema_dir.joinpath("8-Indexes.sql").read_text(encoding="utf-8")
         tasks_schema = schema_dir.joinpath("9-Tasks.sql").read_text(encoding="utf-8")
         funcs_schema = schema_dir.joinpath("10-Functions&Triggers.sql").read_text(encoding="utf-8")
-        admin_invites_schema = schema_dir.joinpath(
-            "12-Admin-Invites.sql"
-        ).read_text(encoding="utf-8")
         admin_tasks_schema = schema_dir.joinpath(
             "13-Admin-Tasks.sql"
         ).read_text(encoding="utf-8")
@@ -129,10 +150,9 @@ class DB_initializor:
             logger.info("Successfully executed [cyan]10-Functions&Triggers.sql[/].")
             await conn.execute(tasks_schema)
             logger.info("Successfully executed [cyan]9-Tasks.sql[/].")
-            await conn.execute(admin_invites_schema)
-            logger.info("Successfully executed [cyan]12-Admin-Invites.sql[/].")
             await conn.execute(admin_tasks_schema)
             logger.info("Successfully executed [cyan]13-Admin-Tasks.sql[/].")
+            await conn.execute('DROP TABLE IF EXISTS "admin_invites" CASCADE;')
 
     
     async def __populate_empty_tables(self):
@@ -142,35 +162,56 @@ class DB_initializor:
         if empty_tables:
             for name in empty_tables:
                 if name == "admins":
+                    owner_file = Path(__file__).resolve().parent.parent.parent / "owner.json"
+                    owner_data = {}
+                    if owner_file.exists():
+                        try:
+                            owner_data = json.loads(owner_file.read_text(encoding="utf-8"))
+                        except Exception:
+                            logger.exception("Failed to parse owner.json")
 
-                    data = models.AdminRegister(
-                        username="admin",
-                        email="admin@example.com",
-                        password_hash="admin",
-                        first_name="System",
-                        last_name="Admin",
-                        contact = "03127820161",
-                        is_superuser= True
-                    )
+                    owner_username = owner_data.get("username", "owner")
+                    owner_email = owner_data.get("email", "owner@bondvault.pk")
+                    raw_password = owner_data.get("password", "OwnerPassword123!")
+                    first_name = owner_data.get("first_name", "System")
+                    last_name = owner_data.get("last_name", "Owner")
+                    contact = owner_data.get("contact", "+923001234567")
+                    role = owner_data.get("role", "owner")
+
+                    owner_pwd_hash = hash_password(raw_password)
 
                     await self.__db.execute(
                         """
                         INSERT INTO "admins" (
                             "username", "email", "password_hash", "first_name",
-                            "last_name", "contact", "is_superuser"
+                            "last_name", "contact", "role"
                         )
                         VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        ON CONFLICT DO NOTHING
                         """,
-                        data.username,
-                        data.email,
-                        data.password_hash,
-                        data.first_name,
-                        data.last_name,
-                        data.contact,
-                        data.is_superuser,
+                        owner_username,
+                        owner_email,
+                        owner_pwd_hash,
+                        first_name,
+                        last_name,
+                        contact,
+                        role,
                     )
+                    logger.info(f"System Owner added.\nusername: {owner_username}\nemail: {owner_email}")
 
-                    logger.info(f"Administrator added.\nusername: {data.username}\nemail: {data.email}")
+                    admin_pwd_hash = hash_password("admin")
+                    await self.__db.execute(
+                        """
+                        INSERT INTO "admins" (
+                            "username", "email", "password_hash", "first_name",
+                            "last_name", "contact", "role"
+                        )
+                        VALUES ('admin', 'admin@example.com', $1, 'System', 'Admin', '03127820161', 'superuser')
+                        ON CONFLICT DO NOTHING
+                        """,
+                        admin_pwd_hash,
+                    )
+                    logger.info("Default Superuser admin added.")
 
                 elif name == "users":
                     data = [
@@ -302,4 +343,65 @@ class DB_initializor:
             raise RuntimeError("The database could not be initialized.") from error
         finally:
             await self.__db.pool_close()
-        
+
+
+async def ensure_owner_account_exists(database: Database) -> None:
+    """Ensure that the 'role' column exists in 'admins' and a System Owner account is seeded."""
+    try:
+        await database.execute(
+            """
+            ALTER TABLE "admins" ADD COLUMN IF NOT EXISTS "role" VARCHAR(20) NOT NULL DEFAULT 'admin';
+            ALTER TABLE "admins" DROP COLUMN IF EXISTS "is_superuser";
+            """
+        )
+
+        owner_exists = await database.fetchval(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM "admins"
+                WHERE "role" = 'owner' OR "username" = 'owner'
+            )
+            """
+        )
+        if owner_exists:
+            return
+
+        owner_file = Path(__file__).resolve().parent.parent.parent / "owner.json"
+        owner_data = {}
+        if owner_file.exists():
+            try:
+                owner_data = json.loads(owner_file.read_text(encoding="utf-8"))
+            except Exception:
+                logger.exception("Failed to parse owner.json")
+
+        owner_username = owner_data.get("username", "owner")
+        owner_email = owner_data.get("email", "owner@bondvault.pk")
+        raw_password = owner_data.get("password", "OwnerPassword123!")
+        first_name = owner_data.get("first_name", "System")
+        last_name = owner_data.get("last_name", "Owner")
+        contact = owner_data.get("contact", "+923001234567")
+        role = owner_data.get("role", "owner")
+
+        owner_pwd_hash = hash_password(raw_password)
+
+        await database.execute(
+            """
+            INSERT INTO "admins" (
+                "username", "email", "password_hash", "first_name",
+                "last_name", "contact", "role"
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT DO NOTHING
+            """,
+            owner_username,
+            owner_email,
+            owner_pwd_hash,
+            first_name,
+            last_name,
+            contact,
+            role,
+        )
+        logger.info(f"System Owner account verified. Username: {owner_username}, Email: {owner_email}")
+    except Exception:
+        logger.exception("Failed to verify/create System Owner account.")

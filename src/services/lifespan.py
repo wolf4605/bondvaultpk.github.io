@@ -1,18 +1,5 @@
 """
-* Project Name: BONDVAULT PK
-
-* Description: The sequence of automated event(s) that are to run in the background while the backend is running.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-23 09:20:06
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-23 09:21:14
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
+The sequence of automated event(s) that are to run in the background while the backend is running.
 """
 
 import asyncio
@@ -27,7 +14,7 @@ from ..logging import get_logger, setup_logging
 from ..redis import RedisWrapper
 from ..utilities.auth_tokens import validate_jwt_config
 from .admin_audit import ensure_admin_audit_table
-from .db_initializor import DB_initializor
+from .db_initializor import DB_initializor, ensure_owner_account_exists
 from .db_monitor import DatabaseMonitor
 from .drawlist_automation import (
     ensure_admin_tasks_table,
@@ -68,6 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await monitor.wait_for_connection()
         await ensure_admin_tasks_table()
         await ensure_admin_audit_table()
+        await ensure_owner_account_exists(DB)
         monitor_task = asyncio.create_task(
             monitor.start(), name="Database-Health-Monitor"
         )

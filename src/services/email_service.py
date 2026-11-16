@@ -9,9 +9,6 @@ from pydantic import EmailStr, ValidationError
 
 from ..configs.email_settings import _EmailConfigs
 
-ADMIN_INVITE_EXPIRY_HOURS = 24
-
-
 class EmailDeliveryError(RuntimeError):
     """SMTP is missing, misconfigured, or failed to deliver an email."""
 
@@ -83,16 +80,17 @@ async def send_email(recipient: EmailStr, subject: str, body: str) -> None:
 async def send_admin_invitation_email(
     recipient: EmailStr,
     username: str,
-    token: str,
+    password: str,
+    role: str = "ADMIN",
 ) -> None:
-    """Send a one-time account activation token, never a reusable password."""
+    """Send administrator username and generated password directly to email."""
     subject, body = _render_mail_template(
         "admin_invitation",
         {
             "username": username,
             "email": str(recipient),
-            "token": token,
-            "expiry_hours": str(ADMIN_INVITE_EXPIRY_HOURS),
+            "password": password,
+            "role": role.upper(),
         },
     )
     await send_email(

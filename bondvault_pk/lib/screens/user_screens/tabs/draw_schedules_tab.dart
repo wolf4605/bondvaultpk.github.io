@@ -27,7 +27,10 @@ class _DrawSchedulesTabState extends State<DrawSchedulesTab> {
   Future<void> _fetchSchedules() async {
     setState(() => _isLoading = true);
     try {
-      final list = await ApiService.fetchDrawSchedule(widget.accessToken);
+      final list = await ApiService.fetchDrawSchedule(
+        accessToken: widget.accessToken,
+        isAdmin: false,
+      );
       if (list != null && mounted) {
         setState(() {
           _schedules = list;
@@ -104,6 +107,32 @@ class _DrawSchedulesTabState extends State<DrawSchedulesTab> {
                                       item['draw_no'] ??
                                       '';
 
+                                  final now = DateTime.now();
+                                  final today = DateTime(
+                                    now.year,
+                                    now.month,
+                                    now.day,
+                                  );
+                                  bool isPast = false;
+                                  try {
+                                    final dt = DateTime.parse(
+                                      drawDate.toString(),
+                                    );
+                                    final drawDay = DateTime(
+                                      dt.year,
+                                      dt.month,
+                                      dt.day,
+                                    );
+                                    isPast = drawDay.isBefore(today);
+                                  } catch (_) {}
+
+                                  final badgeLabel = isPast
+                                      ? 'PAST'
+                                      : 'UPCOMING';
+                                  final badgeType = isPast
+                                      ? AppBadgeType.warning
+                                      : AppBadgeType.info;
+
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
                                     child: AppCard(
@@ -161,8 +190,8 @@ class _DrawSchedulesTabState extends State<DrawSchedulesTab> {
                                               fit: BoxFit.scaleDown,
                                               alignment: Alignment.centerRight,
                                               child: AppBadge(
-                                                label: 'Upcoming',
-                                                type: AppBadgeType.info,
+                                                label: badgeLabel,
+                                                type: badgeType,
                                                 isSmall: true,
                                               ),
                                             ),

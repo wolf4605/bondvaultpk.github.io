@@ -1,13 +1,19 @@
+import 'package:bondvault_pk/screens/user_screens/user_reports_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/app_theme.dart';
-import '../../../utils/permission_utils.dart';
 import '../../../widgets/widgets.dart';
+import '../../change_password_screen.dart';
+import '../../edit_profile_screen.dart';
 
 class SettingsTab extends StatefulWidget {
   final String email;
   final String fullName;
+  final String username;
+  final String contact;
+  final Map<String, dynamic> userInfo;
+  final String accessToken;
   final VoidCallback onLogout;
   final VoidCallback onAbout;
 
@@ -15,6 +21,10 @@ class SettingsTab extends StatefulWidget {
     super.key,
     required this.email,
     required this.fullName,
+    required this.username,
+    required this.contact,
+    required this.userInfo,
+    required this.accessToken,
     required this.onLogout,
     required this.onAbout,
   });
@@ -202,9 +212,8 @@ class _SettingsTabState extends State<SettingsTab> {
                   Navigator.pop(dialogContext);
                   await _loadPreferences();
                   if (!mounted) return;
-                  if (!context.mounted) return;
                   showAppToast(
-                    context,
+                    this.context,
                     isEdit
                         ? 'MPIN updated successfully.'
                         : 'MPIN set successfully.',
@@ -255,47 +264,71 @@ class _SettingsTabState extends State<SettingsTab> {
     }
   }
 
-  void _showChangePasswordDialog() {
-    final oldPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Change Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+  Future<void> _handlePinTileTap() async {
+    if (_hasAppPin) {
+      final action = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: const Text('MPIN Security Options'),
           children: [
-            AppTextField(
-              controller: oldPasswordController,
-              obscureText: true,
-              labelText: 'Current Password',
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, 'edit'),
+              child: const Row(
+                children: [
+                  Icon(Icons.edit_outlined, size: 18),
+                  SizedBox(width: 10),
+                  Text('Edit 4-Digit MPIN'),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            AppTextField(
-              controller: newPasswordController,
-              obscureText: true,
-              labelText: 'New Password',
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, 'remove'),
+              child: const Row(
+                children: [
+                  Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                  SizedBox(width: 10),
+                  Text(
+                    'Remove MPIN Security',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          AppButton(
-            label: 'Update',
-            fullWidth: false,
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              showAppToast(
-                context,
-                'Password changed successfully.',
-                type: AppNotificationType.success,
-              );
-            },
-          ),
-        ],
+      );
+
+      if (action == 'edit') {
+        await _showPinDialog(isEdit: true);
+      } else if (action == 'remove') {
+        await _removePin();
+      }
+    } else {
+      await _showPinDialog(isEdit: false);
+    }
+  }
+
+  void _openChangePasswordScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChangePasswordScreen(
+          accessToken: widget.accessToken,
+          isAdmin: false,
+        ),
+      ),
+    );
+  }
+
+  void _openEditProfileScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProfileScreen(
+          accessToken: widget.accessToken,
+          profileData: widget.userInfo,
+          isAdmin: false,
+        ),
       ),
     );
   }
@@ -320,8 +353,6 @@ class _SettingsTabState extends State<SettingsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -358,7 +389,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       Row(
                         children: [
                           Text(
-                            widget.fullName,
+                            widget.username,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -369,14 +400,20 @@ class _SettingsTabState extends State<SettingsTab> {
                           AppBadge.verified(),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '@${widget.fullName.toLowerCase().replaceAll(' ', '_')}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      if (widget.fullName.isNotEmpty &&
+                          widget.fullName.toLowerCase() !=
+                              widget.username.toLowerCase()) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.fullName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -409,7 +446,9 @@ class _SettingsTabState extends State<SettingsTab> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '+92 300 1234567',
+                            widget.contact.isNotEmpty
+                                ? widget.contact
+                                : '+92 300 1234567',
                             style: TextStyle(
                               fontSize: 13,
                               color: Theme.of(context).colorScheme.onSurface,
@@ -430,13 +469,7 @@ class _SettingsTabState extends State<SettingsTab> {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     icon: const Icon(Icons.edit, color: Colors.white, size: 18),
-                    onPressed: () {
-                      showAppToast(
-                        context,
-                        'Profile edit mode',
-                        type: AppNotificationType.info,
-                      );
-                    },
+                    onPressed: _openEditProfileScreen,
                   ),
                 ),
               ],
@@ -462,21 +495,22 @@ class _SettingsTabState extends State<SettingsTab> {
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     title: const Text(
-                      '4-Digit MPIN Security',
+                      '4-Digit MPIN',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
                     ),
+                    subtitle: Text(
+                      _hasAppPin ? 'MPIN Security Enabled' : 'Disabled',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     value: _hasAppPin,
                     activeThumbColor: Theme.of(context).colorScheme.primary,
-                    onChanged: (val) async {
-                      if (val) {
-                        await _showPinDialog(isEdit: false);
-                      } else {
-                        await _removePin();
-                      }
-                    },
+                    onChanged: (_) => _handlePinTileTap(),
                   ),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
@@ -484,7 +518,7 @@ class _SettingsTabState extends State<SettingsTab> {
                   color: Colors.transparent,
                   child: ListTile(
                     leading: Icon(
-                      Icons.history,
+                      Icons.key_outlined,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     title: const Text(
@@ -498,7 +532,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       Icons.chevron_right,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    onTap: _showChangePasswordDialog,
+                    onTap: _openChangePasswordScreen,
                   ),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
@@ -508,9 +542,7 @@ class _SettingsTabState extends State<SettingsTab> {
                     leading: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.red.shade900.withValues(alpha: 0.2)
-                            : Colors.red.shade50,
+                        color: Colors.red.shade50,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -556,46 +588,6 @@ class _SettingsTabState extends State<SettingsTab> {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                ValueListenableBuilder<ThemeMode>(
-                  valueListenable: themeModeNotifier,
-                  builder: (context, themeMode, _) => Material(
-                    color: Colors.transparent,
-                    child: SwitchListTile(
-                      secondary: Icon(
-                        Icons.palette_outlined,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      title: const Text(
-                        'App Theme',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        themeMode == ThemeMode.dark
-                            ? 'Dark Mode'
-                            : 'Light Mode',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      value: themeMode == ThemeMode.dark,
-                      activeThumbColor: Theme.of(context).colorScheme.primary,
-                      onChanged: (val) async {
-                        final newMode = val ? ThemeMode.dark : ThemeMode.light;
-                        themeModeNotifier.value = newMode;
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString(
-                          'app_theme_mode',
-                          val ? 'dark' : 'light',
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
                 Material(
                   color: Colors.transparent,
                   child: ListTile(
@@ -629,37 +621,6 @@ class _SettingsTabState extends State<SettingsTab> {
                   color: Colors.transparent,
                   child: ListTile(
                     leading: Icon(
-                      Icons.security_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    title: const Text(
-                      'App Permissions',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Camera, Notifications & Storage',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      Icons.chevron_right,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    onTap: () {
-                      PermissionUtils.requestAppPermissions();
-                    },
-                  ),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    leading: Icon(
                       Icons.translate,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -682,6 +643,44 @@ class _SettingsTabState extends State<SettingsTab> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     onTap: _showLanguageDialog,
+                  ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.support_agent_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text(
+                      'Support & Report Tickets',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Open ticket & chat with support staff',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UserReportsScreen(
+                            accessToken: widget.accessToken,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

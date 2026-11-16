@@ -25,7 +25,6 @@ class AppNotificationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final mediaQuery = MediaQuery.of(context);
@@ -36,30 +35,22 @@ class AppNotificationSheet extends StatelessWidget {
 
     switch (type) {
       case AppNotificationType.success:
-        iconBgColor = isDark
-            ? const Color(0xFF0F5132).withValues(alpha: 0.4)
-            : const Color(0xFFD1FAE5);
+        iconBgColor = const Color(0xFFD1FAE5);
         iconColor = AppColors.success;
         icon = Icons.check_circle_outline;
         break;
       case AppNotificationType.error:
-        iconBgColor = isDark
-            ? AppColors.error.withValues(alpha: 0.2)
-            : Colors.red.shade50;
+        iconBgColor = Colors.red.shade50;
         iconColor = AppColors.error;
         icon = Icons.error_outline;
         break;
       case AppNotificationType.warning:
-        iconBgColor = isDark
-            ? Colors.amber.shade900.withValues(alpha: 0.3)
-            : Colors.amber.shade50;
+        iconBgColor = Colors.amber.shade50;
         iconColor = AppColors.warning;
         icon = Icons.warning_amber_rounded;
         break;
       case AppNotificationType.info:
-        iconBgColor = isDark
-            ? Colors.blue.shade900.withValues(alpha: 0.3)
-            : Colors.blue.shade50;
+        iconBgColor = Colors.blue.shade50;
         iconColor = Colors.blue.shade700;
         icon = Icons.info_outline;
         break;
@@ -83,14 +74,14 @@ class AppNotificationSheet extends StatelessWidget {
             Responsive.w(context, 20),
             Responsive.h(context, 24),
           ),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF064E3B) : AppColors.surfaceCard,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
+                color: Colors.black12,
                 blurRadius: 20,
-                offset: const Offset(0, -4),
+                offset: Offset(0, -4),
               ),
             ],
           ),
@@ -103,7 +94,7 @@ class AppNotificationSheet extends StatelessWidget {
                   width: Responsive.w(context, 40),
                   height: 4,
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white30 : Colors.grey.shade300,
+                    color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -125,7 +116,7 @@ class AppNotificationSheet extends StatelessWidget {
                   style: TextStyle(
                     fontSize: Responsive.sp(context, 18),
                     fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : AppColors.onSurface,
+                    color: AppColors.onSurface,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -135,7 +126,7 @@ class AppNotificationSheet extends StatelessWidget {
                   message,
                   style: TextStyle(
                     fontSize: Responsive.sp(context, 13),
-                    color: isDark ? Colors.white70 : AppColors.onSurfaceVariant,
+                    color: AppColors.onSurfaceVariant,
                     height: 1.4,
                   ),
                   textAlign: TextAlign.center,
@@ -151,12 +142,8 @@ class AppNotificationSheet extends StatelessWidget {
                   height: Responsive.h(context, 48),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? const Color(0xFF80BEA6)
-                          : AppColors.primary,
-                      foregroundColor: isDark
-                          ? const Color(0xFF002117)
-                          : Colors.white,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),

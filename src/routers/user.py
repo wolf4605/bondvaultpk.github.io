@@ -15,16 +15,21 @@
 * Copyright© BondVault PK. All rights reserved.
 """
 
+import asyncio
+import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from starlette.exceptions import HTTPException
 
 from .. import models, payloads, responses
 from ..configs import PRIZE_POSITION_NAMES
 from ..database import DB
+from ..services.email_service import send_user_action_email
 from ..utilities.auth_dependencies import get_current_user
+
+logger = logging.getLogger("application.audit")
 
 router = APIRouter(
     prefix="/user",
@@ -121,16 +126,27 @@ async def get_user_upcoming_draws(
     ]
 
 
+def _format_pakistan_contact(contact: str) -> str:
+    cleaned = contact.strip().replace("-", "").replace(" ", "")
+    if cleaned.isdigit() and cleaned.startswith("03") and len(cleaned) == 11:
+        return "+92" + cleaned[1:]
+    elif cleaned.startswith("+923") and len(cleaned) == 13 and cleaned[1:].isdigit():
+        return cleaned
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Invalid Pakistani contact number. Please use format 03001234567 or +923001234567.",
+    )
+
+
 @router.patch(
     path="",
-    summary="Update User Info",
+    summary="Update User Profile Info",
     response_model=responses.BaseResponse
 )
 async def _update_user_info(
     user: Annotated[models.UserInfo, Depends(get_current_user)],
     payload: payloads.UserInfoUpdate,
 ):
-
     ALLOWED_UPDATE_FIELDS = {
         "username",
         "email",
@@ -139,34 +155,128 @@ async def _update_user_info(
         "contact",
         "city",
         "address",
-        }
+    }
 
     raw_updates = payload.model_dump(exclude_unset=True, exclude_none=True)
-
-
     fields_to_update = {}
     for field, new_value in raw_updates.items():
-        if field in ALLOWED_UPDATE_FIELDS and getattr(user, field, None) != new_value:
-            fields_to_update[field] = new_value
+        if field in ALLOWED_UPDATE_FIELDS:
+            current_val = getattr(user, field, None)
+            if current_val != new_value:
+                fields_to_update[field] = new_value
+
     if not fields_to_update:
         raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="No valid or changed fields were provided for update.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid or changed fields were provided for update.",
         )
+
+    new_username = fields_to_update.get("username")
+    new_email = fields_to_update.get("email")
+    raw_contact = fields_to_update.get("contact")
+
+    if new_username:
+        fields_to_update["username"] = new_username.strip()
+        username_conflict = await DB.fetchval(
+            """
+            SELECT 1 FROM "users" WHERE LOWER("username") = LOWER($1) AND "id" != $2
+            UNION ALL
+            SELECT 1 FROM "admins" WHERE LOWER("username") = LOWER($1)
+            """,
+            fields_to_update["username"],
+            user.id,
+        )
+        if username_conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Username '@{fields_to_update['username']}' is already taken.",
+            )
+
+    if new_email:
+        fields_to_update["email"] = new_email.strip().lower()
+        email_conflict = await DB.fetchval(
+            """
+            SELECT 1 FROM "users" WHERE LOWER("email") = LOWER($1) AND "id" != $2
+            UNION ALL
+            SELECT 1 FROM "admins" WHERE LOWER("email") = LOWER($1)
+            """,
+            fields_to_update["email"],
+            user.id,
+        )
+        if email_conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"An account with email '{fields_to_update['email']}' already exists.",
+            )
+
+    if raw_contact:
+        formatted_contact = _format_pakistan_contact(raw_contact)
+        fields_to_update["contact"] = formatted_contact
+        contact_conflict = await DB.fetchval(
+            """
+            SELECT 1 FROM "users" WHERE "contact" = $1 AND "id" != $2
+            UNION ALL
+            SELECT 1 FROM "admins" WHERE "contact" = $1
+            """,
+            formatted_contact,
+            user.id,
+        )
+        if contact_conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Contact number '{formatted_contact}' is already registered.",
+            )
+
+    # Blacklist Checks for new email or new contact
+    check_email = fields_to_update.get("email", user.email).lower()
+    check_contact = fields_to_update.get("contact", user.contact or "")
+
+    is_blacklisted = await DB.fetchval(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM "blacklist"
+            WHERE (LOWER("email") = $1 OR "contact" = $2)
+              AND ("duration" IS NULL OR "duration" > CURRENT_TIMESTAMP)
+        )
+        """,
+        check_email,
+        check_contact,
+    )
+    if is_blacklisted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The requested email or contact number is blacklisted and cannot be used.",
+        )
+
     set_clause = [
-        f"{field} = ${i}"
+        f'"{field}" = ${i}'
         for i, field in enumerate(fields_to_update.keys(), start=2)
-        ]
-    query = (
-        f"UPDATE users SET {', '.join(set_clause)} WHERE id = $1 RETURNING *"
-        )
+    ]
+    query = f'UPDATE "users" SET {", ".join(set_clause)} WHERE "id" = $1'
     values = [user.id] + list(fields_to_update.values())
 
     await DB.execute(query, *values)
     updated_fields_list = list(fields_to_update.keys())
-   
+
+    target_email = new_email if new_email else user.email
+    target_username = new_username if new_username else user.username
+    changes_str = ", ".join(f"{k}: {v}" for k, v in fields_to_update.items())
+
+    async def _send_email_async():
+        try:
+            await send_user_action_email(
+                target_email,
+                target_username,
+                "profile updated",
+                f"Your account profile details were updated ({changes_str}). If you did not make this change, please contact support immediately.",
+            )
+        except Exception:
+            logger.exception("user profile update notification email failed")
+
+    asyncio.create_task(_send_email_async())
+
     return responses.BaseResponse(
-    message=f"Successfully updated fields: {', '.join(updated_fields_list)}"
+        message=f"Successfully updated fields: {', '.join(updated_fields_list)}"
     )
 
 

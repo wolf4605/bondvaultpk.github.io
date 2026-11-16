@@ -21,9 +21,8 @@ CREATE INDEX IF NOT EXISTS idx_market_posted_by ON "market"("posted_by");
 
 CREATE INDEX IF NOT EXISTS idx_reports_reported_by ON "reports"("reported_by");
 
-CREATE INDEX IF NOT EXISTS idx_reports_resolved_by ON "reports"("resolved_by")
+CREATE INDEX IF NOT EXISTS idx_reports_closed_by ON "reports"("closed_by")
 WHERE
-    "resolved_by" IS NOT NULL;
+    "closed_by" IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_blacklist_lookup ON "blacklist"("email", "contact");
-

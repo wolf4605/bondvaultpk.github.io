@@ -31,7 +31,6 @@ class AppStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryIconColor = iconColor ?? AppColors.primary;
     final bgIconColor =
         iconBackgroundColor ?? primaryIconColor.withValues(alpha: 0.12);
@@ -47,19 +46,13 @@ class AppStatCard extends StatelessWidget {
     Widget content = Container(
       padding: responsivePadding,
       decoration: BoxDecoration(
-        color: gradient == null
-            ? (isDark ? const Color(0xFF064E3B) : Colors.white)
-            : null,
+        color: gradient == null ? Colors.white : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.08)
-              : Colors.grey.shade200,
-        ),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -101,7 +94,7 @@ class AppStatCard extends StatelessWidget {
               fontSize: Responsive.sp(context, 10),
               fontWeight: FontWeight.bold,
               letterSpacing: 0.8,
-              color: isDark ? Colors.white70 : AppColors.onSurfaceVariant,
+              color: AppColors.onSurfaceVariant,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -115,7 +108,7 @@ class AppStatCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: Responsive.sp(context, 18),
                 fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : AppColors.onSurface,
+                color: AppColors.onSurface,
                 letterSpacing: -0.5,
               ),
             ),
@@ -126,7 +119,7 @@ class AppStatCard extends StatelessWidget {
               subtitle!,
               style: TextStyle(
                 fontSize: Responsive.sp(context, 10),
-                color: isDark ? Colors.white60 : Colors.grey.shade600,
+                color: Colors.grey.shade600,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

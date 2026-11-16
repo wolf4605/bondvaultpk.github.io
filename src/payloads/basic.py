@@ -65,7 +65,7 @@ class UserPasswordRecoveryComplete(BaseModel):
 
     email: EmailStr
     code: str = Field(pattern=r"^[0-9]{6}$")
-    new_password: str = Field(min_length=12, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
 
 
 class UpcomingDrawCreate(BaseModel):
@@ -73,6 +73,23 @@ class UpcomingDrawCreate(BaseModel):
 
     denomination: PrizeBondDenominations
     draw_date: date
+    location: str | None = Field(default="SBP", description="Location/Venue of the draw.")
+
+
+class AdminDrawWinnerAdd(BaseModel):
+    """Payload for adding a winning bond to an existing drawlist."""
+
+    bond_number: str = Field(pattern=r"^[0-9]{1,6}$", description="1-6 digit bond number.")
+    prize_position: int = Field(ge=1, le=3, description="Prize rank (1, 2, or 3).")
+    prize_amount: int = Field(gt=0, description="Winning prize amount in PKR.")
+
+
+class AdminDrawWinnerUpdate(BaseModel):
+    """Payload for updating an existing winning bond in a drawlist."""
+
+    new_bond_number: str | None = Field(default=None, pattern=r"^[0-9]{1,6}$")
+    prize_position: int | None = Field(default=None, ge=1, le=3)
+    prize_amount: int | None = Field(default=None, gt=0)
 
 
 class DrawListUploadRequest(BaseModel):
@@ -160,7 +177,7 @@ class AddBondsByRange(BaseModel):
 class ChangePassword(BaseModel):
     """Payload for changing a users password."""
     old_password: str = Field(default=..., description="The current password of the user.")
-    new_password: str = Field(default=..., description="The new user password that is to be set. **Should not be same as the current password.")
+    new_password: str = Field(min_length=8, max_length=256, description="The new user password that is to be set.")
 
 
 class AdminSetAdminPassword(BaseModel):
@@ -168,7 +185,7 @@ class AdminSetAdminPassword(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    new_password: SecretStr = Field(min_length=12, max_length=256)
+    new_password: SecretStr = Field(min_length=8, max_length=256)
 
 
 class AdminRegister(BaseModel):
@@ -238,14 +255,29 @@ class AdminCreate(BaseModel):
     email: EmailStr
     first_name: str | None = Field(default=None, max_length=100)
     last_name: str | None = Field(default=None, max_length=100)
+    role: str = Field(default="admin", description="Role: 'admin', 'superuser', or 'owner'.")
 
 
-class AdminActivate(BaseModel):
-    """One-time invitation and new password for administrator account activation."""
+class AdminPasswordChange(BaseModel):
+    """Payload for changing an admin's password by a superuser/owner."""
 
-    email: EmailStr
-    token: str = Field(min_length=32, max_length=128)
-    new_password: SecretStr = Field(min_length=12, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
+
+
+class AdminRoleUpdate(BaseModel):
+    """Payload for updating an admin's role by a system owner."""
+
+    role: str = Field(description="Role: 'admin', 'superuser', or 'owner'.")
+
+
+class AdminProfileUpdate(BaseModel):
+    """Fields that can be updated by an administrator for their own profile."""
+
+    username: str | None = Field(default=None, min_length=1, max_length=50)
+    email: EmailStr | None = Field(default=None)
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+    contact: str | None = Field(default=None)
 
 
 class UserBlacklistRequest(BaseModel):
@@ -362,3 +394,23 @@ class MarketListingRemovalRequest(BaseModel):
     def normalize_reason(cls, value: object) -> object:
         """Trim a removal reason before validating it."""
         return value.strip() if isinstance(value, str) else value
+
+
+class UserReportCreate(BaseModel):
+    """Payload to submit a new support report / ticket."""
+
+    subject: str = Field(min_length=3, max_length=200)
+    category: str = Field(default="general", max_length=50)
+    content: str = Field(min_length=5)
+
+
+class ReportMessageCreate(BaseModel):
+    """Payload to post a message in a report ticket chat thread."""
+
+    message: str = Field(min_length=1)
+
+
+class AdminReportStatusUpdate(BaseModel):
+    """Payload to update a report ticket's status."""
+
+    status: Literal["open", "in_progress", "closed"]

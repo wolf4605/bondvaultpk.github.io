@@ -108,6 +108,31 @@ def _drawlist_winners_response(
     )
 
 
+@router.get(
+    path="",
+    response_model=list[DrawListSummary],
+    summary="Fetch all available draw lists for admin",
+)
+async def get_admin_drawlists(
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> list[DrawListSummary]:
+    """Return all imported draw lists and winner counts for admin management."""
+    records = await DB.fetch(
+        """
+        SELECT d."draw_id", d."draw_date", d."denomination",
+               COUNT(w."bond_number")::INT AS "winner_count"
+        FROM "drawlists" AS d
+        LEFT JOIN "draw_winners" AS w ON w."draw_id" = d."draw_id"
+        GROUP BY d."draw_id", d."draw_date", d."denomination"
+        ORDER BY d."draw_date" DESC, d."denomination" ASC
+        """
+    )
+    return [
+        DrawListSummary.model_validate(dict(record))
+        for record in records
+    ]
+
+
 @user_router.get(
     path="",
     response_model=list[DrawListSummary],
@@ -131,6 +156,42 @@ async def get_user_drawlists(
         DrawListSummary.model_validate(dict(record))
         for record in records
     ]
+
+
+@router.get(
+    path="/{draw_id}/bonds",
+    response_model=DrawListWinnersResponse,
+    summary="Fetch the winning bonds in a draw list for admin",
+)
+async def get_admin_drawlist_bonds(
+    draw_id: UUID,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> DrawListWinnersResponse:
+    """Return all winning bonds and prize details for one imported draw for admin."""
+    records = await _fetch_user_drawlist(draw_id)
+    return _drawlist_winners_response(records)
+
+
+@router.get(
+    path="/{draw_id}/pdf",
+    response_class=Response,
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"application/pdf": {}},
+            "description": "PDF containing the draw list and its winning bonds.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "The requested draw list does not exist.",
+        },
+    },
+    summary="Download a draw list as a PDF for admin",
+)
+async def download_admin_drawlist_pdf(
+    draw_id: UUID,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> Response:
+    """Generate an in-memory PDF for one draw list for admin."""
+    return await download_user_drawlist_pdf(draw_id, None)  # type: ignore
 
 
 @user_router.get(
@@ -250,12 +311,34 @@ async def download_user_drawlist_pdf(
 @router.get(
     path="/schedule",
     response_model=list[responses.UpcomingDrawInfo],
-    summary="Fetch upcoming draw schedules",
+    summary="Fetch all draw schedules for admin",
 )
 async def get_upcoming_draws(
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
 ) -> list[responses.UpcomingDrawInfo]:
-    """Return all scheduled draws that have not yet passed in Pakistan time."""
+    """Return all scheduled draws in the system ordered by draw date."""
+    records = await DB.fetch(
+        """
+        SELECT "draw_date", "denomination", "created_at", COALESCE("location", 'State Bank of Pakistan (SBP)') AS "location"
+        FROM "upcoming_draws"
+        ORDER BY "draw_date" DESC, "denomination" ASC
+        """
+    )
+    return [
+        responses.UpcomingDrawInfo(**record)
+        for record in records
+    ]
+
+
+@user_router.get(
+    path="/schedule",
+    response_model=list[responses.UpcomingDrawInfo],
+    summary="Fetch upcoming draw schedules for users",
+)
+async def get_user_upcoming_draws(
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+) -> list[responses.UpcomingDrawInfo]:
+    """Return scheduled draws that have not yet passed in Pakistan time."""
     records = await DB.fetch(
         """
         SELECT "draw_date", "denomination", "created_at", COALESCE("location", 'State Bank of Pakistan (SBP)') AS "location"
@@ -282,23 +365,20 @@ async def add_upcoming_draw(
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
     payload: payloads.UpcomingDrawCreate,
 ) -> responses.UpcomingDrawInfo:
-    """Add a future schedule entry; denomination/date pairs must be unique."""
-    today_in_pakistan = datetime.now(PAKISTAN_STANDARD_TIME).date()
-    if payload.draw_date <= today_in_pakistan:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The scheduled draw date must be in the future.",
-        )
+    """Add a schedule entry with custom location; denomination/date pairs must be unique."""
+    location_clean = payload.location.strip() if payload.location and payload.location.strip() else "State Bank of Pakistan (SBP)"
 
     record = await DB.fetchrow(
         """
-        INSERT INTO "upcoming_draws" ("draw_date", "denomination")
-        VALUES ($1, $2)
-        ON CONFLICT ("draw_date", "denomination") DO NOTHING
-        RETURNING "draw_date", "denomination", "created_at"
+        INSERT INTO "upcoming_draws" ("draw_date", "denomination", "location")
+        VALUES ($1, $2, $3)
+        ON CONFLICT ("draw_date", "denomination") DO UPDATE
+        SET "location" = EXCLUDED."location"
+        RETURNING "draw_date", "denomination", "created_at", COALESCE("location", 'State Bank of Pakistan (SBP)') AS "location"
         """,
         payload.draw_date,
         payload.denomination,
+        location_clean,
     )
     if record is None:
         raise HTTPException(
@@ -360,6 +440,140 @@ async def delete_drawlist(
                 detail="Draw list not found.",
             )
         return responses.BaseResponse(message="Draw list and its winners deleted.")
+
+
+@router.post(
+    path="/{draw_id}/bonds",
+    response_model=responses.BaseResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a winning bond to an existing drawlist",
+)
+async def add_drawlist_winner(
+    draw_id: UUID,
+    payload: payloads.AdminDrawWinnerAdd,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> responses.BaseResponse:
+    """Allow an administrator to add a winning bond number to a drawlist."""
+    normalized_bond = payload.bond_number.zfill(6)
+
+    draw_exists = await DB.fetchval(
+        'SELECT 1 FROM "drawlists" WHERE "draw_id" = $1', draw_id
+    )
+    if not draw_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Draw list not found."
+        )
+
+    await DB.execute(
+        """
+        INSERT INTO "draw_winners" ("draw_id", "bond_number", "prize_position", "prize_amount")
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT ("draw_id", "bond_number") DO UPDATE
+        SET "prize_position" = EXCLUDED."prize_position",
+            "prize_amount" = EXCLUDED."prize_amount"
+        """,
+        draw_id,
+        normalized_bond,
+        payload.prize_position,
+        payload.prize_amount,
+    )
+    return responses.BaseResponse(
+        status_code=status.HTTP_201_CREATED,
+        message=f"Winning bond {normalized_bond} added/updated in drawlist.",
+    )
+
+
+@router.patch(
+    path="/{draw_id}/bonds/{bond_number}",
+    response_model=responses.BaseResponse,
+    summary="Update prize position, amount, or bond number in a drawlist",
+)
+async def update_drawlist_winner(
+    draw_id: UUID,
+    bond_number: str,
+    payload: payloads.AdminDrawWinnerUpdate,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> responses.BaseResponse:
+    """Allow an administrator to update prize position, amount, or bond number."""
+    normalized_bond = bond_number.zfill(6)
+    winner = await DB.fetchrow(
+        'SELECT "draw_id", "bond_number", "prize_position", "prize_amount" FROM "draw_winners" WHERE "draw_id" = $1 AND "bond_number" = $2',
+        draw_id,
+        normalized_bond,
+    )
+    if winner is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Winning bond not found in this drawlist.",
+        )
+
+    new_bond = (
+        payload.new_bond_number.zfill(6)
+        if payload.new_bond_number
+        else normalized_bond
+    )
+    new_pos = (
+        payload.prize_position
+        if payload.prize_position is not None
+        else winner["prize_position"]
+    )
+    new_amt = (
+        payload.prize_amount
+        if payload.prize_amount is not None
+        else winner["prize_amount"]
+    )
+
+    async with DB.transaction() as conn:
+        if new_bond != normalized_bond:
+            await conn.execute(
+                'DELETE FROM "draw_winners" WHERE "draw_id" = $1 AND "bond_number" = $2',
+                draw_id,
+                normalized_bond,
+            )
+        await conn.execute(
+            """
+            INSERT INTO "draw_winners" ("draw_id", "bond_number", "prize_position", "prize_amount")
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT ("draw_id", "bond_number") DO UPDATE
+            SET "prize_position" = EXCLUDED."prize_position",
+                "prize_amount" = EXCLUDED."prize_amount"
+            """,
+            draw_id,
+            new_bond,
+            new_pos,
+            new_amt,
+        )
+
+    return responses.BaseResponse(
+        message=f"Winning bond {new_bond} updated successfully."
+    )
+
+
+@router.delete(
+    path="/{draw_id}/bonds/{bond_number}",
+    response_model=responses.BaseResponse,
+    summary="Delete a winning bond from a drawlist",
+)
+async def delete_drawlist_winner(
+    draw_id: UUID,
+    bond_number: str,
+    admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
+) -> responses.BaseResponse:
+    """Allow an administrator to remove one winning bond from a drawlist."""
+    normalized_bond = bond_number.zfill(6)
+    deleted = await DB.fetchrow(
+        'DELETE FROM "draw_winners" WHERE "draw_id" = $1 AND "bond_number" = $2 RETURNING "bond_number"',
+        draw_id,
+        normalized_bond,
+    )
+    if deleted is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Winning bond not found in this drawlist.",
+        )
+    return responses.BaseResponse(
+        message=f"Winning bond {normalized_bond} deleted from drawlist."
+    )
 
 
 @router.post(

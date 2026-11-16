@@ -418,8 +418,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final appPin = _appPinController.text.trim();
         if (appPin.isNotEmpty) {
           await prefs.setString('app_pin', appPin);
-        } else {
-          await prefs.remove('app_pin');
         }
 
         final loginUri = Uri.parse(

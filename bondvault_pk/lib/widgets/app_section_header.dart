@@ -19,7 +19,6 @@ class AppSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final actionWidget = action;
 
     return Padding(
@@ -41,9 +40,7 @@ class AppSectionHeader extends StatelessWidget {
                       fontSize: Responsive.sp(context, 10),
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
-                      color: isDark
-                          ? const Color(0xFF80BEA6)
-                          : AppColors.onSurfaceVariant,
+                      color: AppColors.onSurfaceVariant,
                     ),
                   ),
                   SizedBox(height: Responsive.h(context, 2)),
@@ -53,7 +50,7 @@ class AppSectionHeader extends StatelessWidget {
                   style: TextStyle(
                     fontSize: Responsive.sp(context, 18),
                     fontWeight: FontWeight.w800,
-                    color: isDark ? const Color(0xFFFAFAFF) : AppColors.primary,
+                    color: AppColors.primary,
                     letterSpacing: -0.3,
                   ),
                 ),

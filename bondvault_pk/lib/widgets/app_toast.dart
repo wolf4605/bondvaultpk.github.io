@@ -27,7 +27,6 @@ class AppToast {
     _currentEntry = null;
 
     final overlay = Overlay.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final actualDurationSeconds = durationSeconds ?? await getToastDuration();
 
     Color bg;
@@ -37,25 +36,25 @@ class AppToast {
 
     switch (type) {
       case AppNotificationType.success:
-        bg = isDark ? const Color(0xFF0F5132) : const Color(0xFF064E3B);
+        bg = const Color(0xFF064E3B);
         border = const Color(0xFF80BEA6);
         textColor = Colors.white;
         icon = Icons.check_circle;
         break;
       case AppNotificationType.error:
-        bg = isDark ? const Color(0xFF4A0E0E) : AppColors.error;
+        bg = AppColors.error;
         border = Colors.red.shade300;
         textColor = Colors.white;
         icon = Icons.error;
         break;
       case AppNotificationType.warning:
-        bg = isDark ? const Color(0xFF5C3C00) : Colors.amber.shade900;
+        bg = Colors.amber.shade900;
         border = Colors.amber.shade300;
         textColor = Colors.white;
         icon = Icons.warning_rounded;
         break;
       case AppNotificationType.info:
-        bg = isDark ? const Color(0xFF002117) : AppColors.primary;
+        bg = AppColors.primary;
         border = AppColors.onPrimaryContainer;
         textColor = Colors.white;
         icon = Icons.info_rounded;

@@ -176,8 +176,6 @@ class _MyBondsTabState extends State<MyBondsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     if (!widget.isVerified) {
       return const AppEmptyState(
         icon: Icons.lock_outline,
@@ -237,7 +235,9 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                   Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.15),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Icon(
@@ -319,7 +319,7 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const Icon(
-                                      Icons.savings_outlined,
+                                      Icons.assignment,
                                       size: 16,
                                       color: Color(0xFF95D3BA),
                                     ),
@@ -411,15 +411,9 @@ class _MyBondsTabState extends State<MyBondsTab> {
                               child: AppCard(
                                 padding: const EdgeInsets.all(18),
                                 borderRadius: 20,
-                                color: isDark
-                                    ? const Color(0xFF064E3B)
-                                    : Colors.white,
                                 border: Border.all(
-                                  color: isDark
-                                      ? const Color(0xFF80BEA6)
-                                            .withValues(alpha: 0.3)
-                                      : const Color(0xFF80BEA6)
-                                            .withValues(alpha: 0.5),
+                                  color: const Color(0xFF80BEA6)
+                                      .withValues(alpha: 0.5),
                                   width: 1.5,
                                 ),
                                 elevation: 3,
@@ -489,13 +483,11 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                                 children: [
                                                   Text(
                                                     'Rs. ${formatNumber(denomination)}',
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                       fontSize: 17,
                                                       fontWeight:
                                                           FontWeight.w900,
-                                                      color: isDark
-                                                          ? Colors.white
-                                                          : AppColors.primary,
+                                                      color: AppColors.primary,
                                                     ),
                                                   ),
                                                   if (winnerCount > 0)
@@ -513,13 +505,11 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                                 winnerCount > 0
                                                     ? '${bonds.length} Bonds Held • Rs. ${formatNumber(denomWonAmount)} Won'
                                                     : '${bonds.length} Bonds Registered',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w500,
-                                                  color: isDark
-                                                      ? Colors.white70
-                                                      : AppColors
-                                                            .onSurfaceVariant,
+                                                  color: AppColors
+                                                      .onSurfaceVariant,
                                                 ),
                                               ),
                                             ],
@@ -548,15 +538,16 @@ class _MyBondsTabState extends State<MyBondsTab> {
                                               Flexible(
                                                 child: FittedBox(
                                                   fit: BoxFit.scaleDown,
-                                                  alignment: Alignment.centerLeft,
+                                                  alignment:
+                                                      Alignment.centerLeft,
                                                   child: Text(
                                                     'Total Value: Rs. ${formatNumber(totalVal)}',
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                       fontSize: 13,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: isDark
-                                                          ? Colors.white
-                                                          : AppColors.onSurface,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          AppColors.onSurface,
                                                     ),
                                                   ),
                                                 ),

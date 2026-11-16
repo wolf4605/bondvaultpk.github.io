@@ -8,6 +8,7 @@ import '../../utils/permission_utils.dart';
 import '../../widgets/widgets.dart';
 import '../login_screen.dart';
 import 'draw_lists_screen.dart';
+import 'user_reports_screen.dart';
 import 'tabs/draw_schedules_tab.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/marketplace_tab.dart';
@@ -75,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('saved_username');
     await prefs.remove('saved_password');
+    await prefs.remove('cached_access_token');
+    await prefs.remove('cached_user_info');
     if (!context.mounted) return;
     Navigator.pushReplacement(
       context,
@@ -136,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
         formatNumber: formatNumber,
         onNavigate: (index) => handleTabChange(index),
       ),
-      SearchBondsTab(isVerified: isVerified),
+      SearchBondsTab(isVerified: isVerified, accessToken: widget.accessToken),
       MyBondsTab(
         isVerified: isVerified,
         accessToken: widget.accessToken,
@@ -151,6 +154,10 @@ class _HomeScreenState extends State<HomeScreen> {
       SettingsTab(
         email: email,
         fullName: fullName,
+        username: username,
+        contact: contact,
+        userInfo: widget.userInfo,
+        accessToken: widget.accessToken,
         onLogout: () => _logout(context),
         onAbout: () => _showAboutDialog(context),
       ),
@@ -460,22 +467,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   _buildDrawerItem(
-                    icon: Icons.card_giftcard_outlined,
-                    title: 'Prize Winnings & Claims',
-                    isSelected: false,
-                    hasBadge: true,
-                    onTap: () {
-                      Navigator.pop(context);
-                      handleTabChange(2);
-                    },
-                  ),
-                  _buildDrawerItem(
-                    icon: Icons.description_outlined,
-                    title: 'Reports',
+                    icon: Icons.support_agent_outlined,
+                    title: 'Support & Reports',
                     isSelected: false,
                     onTap: () {
                       Navigator.pop(context);
-                      handleTabChange(2);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UserReportsScreen(
+                            accessToken: widget.accessToken,
+                          ),
+                        ),
+                      );
                     },
                   ),
                   _buildDrawerItem(

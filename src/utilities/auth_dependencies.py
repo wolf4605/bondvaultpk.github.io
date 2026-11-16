@@ -273,7 +273,7 @@ async def get_current_admin(
     record = await DB.fetchrow(
         """
         SELECT "id", "username", "email", "first_name", "last_name",
-               "contact", "created_at", "is_superuser"
+               "contact", "created_at", COALESCE("role", 'admin') AS "role"
         FROM "admins"
         WHERE "id" = $1
         """,

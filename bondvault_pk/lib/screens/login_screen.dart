@@ -9,6 +9,7 @@ import '../config/app_theme.dart';
 import '../widgets/widgets.dart';
 import 'admin_screens/admin_home_screen.dart';
 import 'register_screen.dart';
+import 'user_password_recovery_screen.dart';
 import 'user_screens/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -168,50 +169,6 @@ class _LoginScreenState extends State<LoginScreen>
     precacheImage(const AssetImage('assets/logo.png'), context);
   }
 
-  void _showForgotPasswordDialog() {
-    final recoveryEmailController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Password Recovery'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Please enter your registered email address to receive password reset instructions.',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            AppTextField(
-              controller: recoveryEmailController,
-              labelText: 'Email Address',
-              prefixIcon: const Icon(Icons.email_outlined),
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          AppButton(
-            label: 'Send Code',
-            fullWidth: false,
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              showAppToast(
-                context,
-                'Recovery code sent to email if registered.',
-                type: AppNotificationType.info,
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -337,37 +294,13 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               const SizedBox(height: 16),
 
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Password',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.onSurface,
-                                    ),
-                                  ),
-                                  if (!_isAdmin)
-                                    TextButton(
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      onPressed: _showForgotPasswordDialog,
-                                      child: const Text(
-                                        'Forgot Password?',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.secondary,
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                              const Text(
+                                'Password',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurface,
+                                ),
                               ),
                               const SizedBox(height: 6),
                               AppTextField(
@@ -392,7 +325,36 @@ class _LoginScreenState extends State<LoginScreen>
                                 validator: (v) =>
                                     v == null || v.isEmpty ? 'Required' : null,
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const UserPasswordRecoveryScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
 
                               AppButton(
                                 label: _isAdmin
@@ -464,7 +426,13 @@ class _LoginScreenState extends State<LoginScreen>
                                 icon: Icons.key,
                                 onTap: () {
                                   _toggleFab();
-                                  _showForgotPasswordDialog();
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const UserPasswordRecoveryScreen(),
+                                    ),
+                                  );
                                 },
                               ),
                           ],

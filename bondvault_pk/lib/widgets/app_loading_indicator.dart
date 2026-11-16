@@ -11,10 +11,7 @@ class AppLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final spinnerColor =
-        color ??
-        (isDark ? const Color(0xFF80BEA6) : AppColors.primaryContainer);
+    final spinnerColor = color ?? AppColors.primaryContainer;
 
     return Center(
       child: Padding(
@@ -34,7 +31,7 @@ class AppLoadingIndicator extends StatelessWidget {
                 style: TextStyle(
                   fontSize: Responsive.sp(context, 13),
                   fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white70 : AppColors.onSurfaceVariant,
+                  color: AppColors.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),

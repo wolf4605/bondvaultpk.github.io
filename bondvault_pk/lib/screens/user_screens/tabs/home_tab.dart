@@ -48,7 +48,8 @@ class _HomeTabState extends State<HomeTab> {
   Future<void> _fetchHomeDrawData() async {
     try {
       final scheduleList = await ApiService.fetchDrawSchedule(
-        widget.accessToken,
+        accessToken: widget.accessToken,
+        isAdmin: false,
       );
       if (scheduleList != null && scheduleList.isNotEmpty && mounted) {
         setState(() {
@@ -75,32 +76,28 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Greeting Section
-          Text(
+          const Text(
             'ASSALAM-O-ALAIKUM',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.2,
-              color: isDark
-                  ? const Color(0xFF80BEA6)
-                  : AppColors.onSurfaceVariant,
+              color: AppColors.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             'Welcome back, ${widget.fullName}',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : AppColors.primary,
+              color: AppColors.primary,
               letterSpacing: -0.5,
             ),
           ),
@@ -109,15 +106,9 @@ class _HomeTabState extends State<HomeTab> {
           // Verification Notice Banner
           if (!widget.isVerified) ...[
             AppCard(
-              color: isDark
-                  ? Colors.amber.shade900.withValues(alpha: 0.2)
-                  : Colors.amber.shade50,
+              color: Colors.amber.shade50,
               padding: const EdgeInsets.all(14),
-              border: Border.all(
-                color: isDark
-                    ? Colors.amber.shade800.withValues(alpha: 0.4)
-                    : Colors.amber.shade200,
-              ),
+              border: Border.all(color: Colors.amber.shade200),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -137,14 +128,12 @@ class _HomeTabState extends State<HomeTab> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
+                            const Text(
                               'Verification Under Review',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.amber.shade200
-                                    : const Color(0xFF78350F),
+                                color: Color(0xFF78350F),
                               ),
                             ),
                             AppBadge(
@@ -155,13 +144,11 @@ class _HomeTabState extends State<HomeTab> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(
+                        const Text(
                           'Your account is currently pending approval. Some features may not be available',
                           style: TextStyle(
                             fontSize: 11,
-                            color: isDark
-                                ? Colors.amber.shade100
-                                : const Color(0xFF92400E),
+                            color: Color(0xFF92400E),
                             height: 1.3,
                           ),
                         ),
@@ -349,9 +336,7 @@ class _HomeTabState extends State<HomeTab> {
 
                 return AppCard(
                   padding: const EdgeInsets.all(14),
-                  color: isDark
-                      ? Colors.amber.shade900.withValues(alpha: 0.15)
-                      : Colors.amber.shade50,
+                  color: Colors.amber.shade50,
                   child: Row(
                     children: [
                       Container(
@@ -432,9 +417,7 @@ class _HomeTabState extends State<HomeTab> {
           ] else
             AppCard(
               padding: const EdgeInsets.all(14),
-              color: isDark
-                  ? Colors.amber.shade900.withValues(alpha: 0.15)
-                  : Colors.amber.shade50,
+              color: Colors.amber.shade50,
               child: Row(
                 children: [
                   Container(

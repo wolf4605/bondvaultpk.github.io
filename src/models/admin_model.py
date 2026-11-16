@@ -62,7 +62,7 @@ class AdminRegister(Model):
         )
     "Contact number of the administrator."
 
-    is_superuser: bool
+    role: str = Field(default="admin", description="Role: 'admin', 'superuser', or 'owner'.")
 
     @field_validator("password_hash")
     @classmethod
@@ -94,7 +94,7 @@ class AdminInfo(Model):
     last_name: str | None = Field(default=..., description="The administrator's last name, if provided.")
     contact: str | None = Field(default=..., description="The administrator's contact number, if provided.")
     created_at: datetime = Field(default=..., description="When the administrator account was created.")
-    is_superuser: bool = Field(default=..., description="Whether the administrator has superuser privileges.")
+    role: str = Field(default="admin", description="Role: 'admin', 'superuser', or 'owner'.")
 
 
 __all__ = ["AdminInfo", "AdminRegister"]
