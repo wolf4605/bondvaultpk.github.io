@@ -63,18 +63,18 @@ async def login_user(
                "last_name", "contact", "city", "address", "created_at",
                "is_verified", "verified_by", "last_login"
         FROM "users"
-        WHERE ("username" = $1 OR LOWER("email") = LOWER($1))
+        WHERE (LOWER("username") = LOWER($1) OR LOWER("email") = LOWER($1))
           AND NOT EXISTS (
               SELECT 1
               FROM "blacklist"
-              WHERE ("blacklist"."email" = "users"."email"
+              WHERE (LOWER("blacklist"."email") = LOWER("users"."email")
                      OR "blacklist"."contact" = "users"."contact")
                 AND (
                     "blacklist"."duration" IS NULL
                     OR "blacklist"."duration" > CURRENT_TIMESTAMP
                 )
           )
-        ORDER BY ("username" = $1) DESC
+        ORDER BY (LOWER("username") = LOWER($1)) DESC
         LIMIT 1
         """,
         credentials.username,

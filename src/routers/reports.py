@@ -23,6 +23,7 @@ from ..services.email_service import (
     send_ticket_created_email,
     send_user_action_email,
 )
+from ..services.fcm_service import send_fcm_push_notification
 from ..utilities.auth_dependencies import get_current_admin, get_current_user
 
 logger = logging.getLogger("application.audit")
@@ -320,6 +321,28 @@ async def add_admin_report_message(
 
     if msg is None:
         raise RuntimeError("Failed to post admin reply.")
+
+    # Dispatch high-priority FCM push notification to user's device for closed-app delivery
+    user_info = await DB.fetchrow(
+        """
+        SELECT u."fcm_token", r."subject"
+        FROM "reports" AS r
+        JOIN "users" AS u ON u."id" = r."reported_by"
+        WHERE r."id" = $1
+        """,
+        report_id,
+    )
+    if user_info and user_info["fcm_token"]:
+        short_id = str(report_id)[:8]
+        asyncio.create_task(
+            send_fcm_push_notification(
+                user_info["fcm_token"],
+                f"💬 New Admin Reply on Ticket #{short_id}",
+                f"\"{user_info['subject']}\"\n{payload.message.strip()}",
+                {"ticket_id": str(report_id)},
+            )
+        )
+
     return responses.ReportMessageInfo.model_validate(dict(msg))
 
 
@@ -370,8 +393,8 @@ async def update_report_status(
             report_id,
         )
 
-    # Notify user via email on ticket resolution/status change
-    async def _send_email():
+    # Notify user via email and FCM push notification on ticket resolution/status change
+    async def _send_notifications():
         try:
             if payload.status == "closed":
                 await send_ticket_closed_email(
@@ -388,10 +411,24 @@ async def update_report_status(
                     "support ticket status update",
                     f"Your support ticket '{report['subject']}' status was updated to '{payload.status.upper()}'.",
                 )
-        except Exception:
-            logger.exception("ticket status update email failed")
 
-    asyncio.create_task(_send_email())
+            # Dispatch FCM closed-app push notification
+            fcm_token = await DB.fetchval(
+                'SELECT "fcm_token" FROM "users" WHERE "id" = (SELECT "reported_by" FROM "reports" WHERE "id" = $1)',
+                report_id,
+            )
+            if fcm_token and payload.status == "closed":
+                short_id = str(report_id)[:8]
+                await send_fcm_push_notification(
+                    fcm_token,
+                    f"✅ Support Ticket #{short_id} Resolved",
+                    f"Your ticket \"{report['subject']}\" has been marked as closed/resolved.",
+                    {"ticket_id": str(report_id)},
+                )
+        except Exception:
+            logger.exception("ticket status update notification failed")
+
+    asyncio.create_task(_send_notifications())
 
     return responses.BaseResponse(
         message=f"Support ticket status updated to {payload.status.upper()}."

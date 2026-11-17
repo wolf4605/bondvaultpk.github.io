@@ -5,16 +5,18 @@ import '../../config/app_theme.dart';
 import '../../utils/api_service.dart';
 import '../../utils/app_utils.dart';
 import '../../utils/permission_utils.dart';
+import '../../utils/push_notification_service.dart';
+import '../../utils/user_notification_monitor.dart';
 import '../../widgets/widgets.dart';
 import '../login_screen.dart';
 import 'draw_lists_screen.dart';
-import 'user_reports_screen.dart';
 import 'tabs/draw_schedules_tab.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/marketplace_tab.dart';
 import 'tabs/my_bonds_tab.dart';
 import 'tabs/search_bonds_tab.dart';
 import 'tabs/settings_tab.dart';
+import 'user_reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String accessToken;
@@ -30,7 +32,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isLoadingPortfolio = true;
   int _totalAssets = 0;
@@ -39,11 +41,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     PermissionUtils.requestAppPermissions();
+    UserNotificationMonitor.start(widget.accessToken);
+    PushNotificationService.registerDeviceToken(widget.accessToken);
     if (widget.userInfo['is_verified'] == true) {
       _fetchPortfolioData();
     } else {
       _isLoadingPortfolio = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      UserNotificationMonitor.scheduleClosedAppCheck(widget.accessToken);
     }
   }
 
@@ -73,6 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout(BuildContext context) async {
+    PushNotificationService.unregisterDeviceToken(widget.accessToken);
+    UserNotificationMonitor.stop();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('saved_username');
     await prefs.remove('saved_password');

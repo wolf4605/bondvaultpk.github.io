@@ -920,4 +920,38 @@ class ApiService {
       rethrow;
     }
   }
+
+  /// Save user FCM device token via POST /user/fcm-token
+  static Future<http.Response?> saveFcmToken(
+    String accessToken,
+    String fcmToken,
+  ) async {
+    try {
+      final uri = Uri.parse('${AppConfig.baseUrl}/user/fcm-token');
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'fcm_token': fcmToken}),
+      );
+      handleApiResponse(res, showToastOnError: false);
+      return res;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Delete user FCM device token on logout via DELETE /user/fcm-token
+  static Future<http.Response?> removeFcmToken(String accessToken) async {
+    try {
+      final uri = Uri.parse('${AppConfig.baseUrl}/user/fcm-token');
+      final res = await http.delete(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      return res;
+    } catch (_) {}
+    return null;
+  }
 }

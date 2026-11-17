@@ -21,6 +21,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 
 from .. import models, payloads, responses
@@ -410,3 +411,41 @@ async def delete_market_listing(
             detail="Marketplace listing not found.",
         )
     return responses.BaseResponse(message="Marketplace listing deleted.")
+
+
+class FcmTokenSaveRequest(BaseModel):
+    fcm_token: str
+
+
+@router.post(
+    "/fcm-token",
+    response_model=responses.BaseResponse,
+    summary="Save or update user's FCM device token for closed-app push notifications",
+)
+async def save_fcm_token(
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+    payload: FcmTokenSaveRequest,
+) -> responses.BaseResponse:
+    """Register or update FCM device token for instant push notifications when app is closed."""
+    await DB.execute(
+        'UPDATE "users" SET "fcm_token" = $1 WHERE "id" = $2',
+        payload.fcm_token.strip(),
+        user.id,
+    )
+    return responses.BaseResponse(message="FCM device token registered.")
+
+
+@router.delete(
+    "/fcm-token",
+    response_model=responses.BaseResponse,
+    summary="Remove user's FCM device token on logout",
+)
+async def remove_fcm_token(
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+) -> responses.BaseResponse:
+    """Remove FCM device token from user account upon logout."""
+    await DB.execute(
+        'UPDATE "users" SET "fcm_token" = NULL WHERE "id" = $1',
+        user.id,
+    )
+    return responses.BaseResponse(message="FCM device token removed.")

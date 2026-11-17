@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../utils/push_notification_service.dart';
 import '../widgets/widgets.dart';
 import 'admin_screens/admin_home_screen.dart';
 import 'register_screen.dart';
@@ -119,6 +120,7 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('saved_password', _passwordController.text);
           await prefs.setString('cached_access_token', accessToken);
           await prefs.setString('cached_user_info', jsonEncode(userInfo));
+          PushNotificationService.registerDeviceToken(accessToken);
 
           if (!mounted) return;
           showAppToast(

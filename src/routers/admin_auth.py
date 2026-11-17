@@ -302,8 +302,8 @@ async def login_admin(
         SELECT "id", "username", "email", "password_hash", "first_name",
                "last_name", "contact", "created_at", COALESCE("role", 'admin') AS "role"
         FROM "admins"
-        WHERE "username" = $1 OR LOWER("email") = LOWER($1)
-        ORDER BY ("username" = $1) DESC
+        WHERE LOWER("username") = LOWER($1) OR LOWER("email") = LOWER($1)
+        ORDER BY (LOWER("username") = LOWER($1)) DESC
         LIMIT 1
         """,
         credentials.username,

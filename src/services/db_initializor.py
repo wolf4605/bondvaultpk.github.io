@@ -111,9 +111,10 @@ class DB_initializor:
 
                 logger.info(f"Successfully executed [cyan]{schema_file[name]}[/].")
 
-        # Auto-migrate report schema for existing database instances
+        # Auto-migrate report and user schemas for existing database instances
         await self.__db.execute(
             """
+            ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "fcm_token" TEXT;
             ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "category" VARCHAR(50) NOT NULL DEFAULT 'general';
             ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "closed_at" TIMESTAMPTZ;
             ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS "closed_by" UUID REFERENCES "admins"("id") ON DELETE SET NULL;

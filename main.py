@@ -57,6 +57,7 @@ from src.utilities.auth_tokens import ACCESS_TOKEN_EXPIRES_HEADER, ACCESS_TOKEN_
 # ║                  CONFIGURING THE LOGGER                  ║
 # ╚══════════════════════════════════════════════════════════╝
 
+logging.getLogger("redis.asyncio.connection").setLevel(logging.INFO)
 exception_file_logger = logging.getLogger("application.errors")
 API_PREFIXES = ("/admins", "/bonds", "/drawlists", "/system", "/user")
 RATE_LIMITED_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})

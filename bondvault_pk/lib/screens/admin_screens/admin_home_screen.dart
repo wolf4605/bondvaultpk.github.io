@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_config.dart';
 import '../../config/app_theme.dart';
 import '../../utils/api_service.dart';
+import '../../utils/user_notification_monitor.dart';
 import '../../widgets/widgets.dart';
 import '../login_screen.dart';
 import 'admin_audit_logs_screen.dart';
@@ -456,6 +457,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   void initState() {
     super.initState();
+    UserNotificationMonitor.stop();
     _fetchAdminData();
   }
 
