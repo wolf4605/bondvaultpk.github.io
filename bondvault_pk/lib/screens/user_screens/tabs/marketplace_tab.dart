@@ -1072,12 +1072,14 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                   Expanded(
                     child: SizedBox(
                       height: 44,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 1,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          side: const BorderSide(color: AppColors.primary),
                         ),
                         onPressed: () =>
                             _showListingDialog(isEdit: true, listing: item),
@@ -1096,18 +1098,20 @@ class _MarketplaceTabState extends State<MarketplaceTab>
                   SizedBox(
                     height: 44,
                     width: 48,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 1,
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        side: BorderSide(color: Colors.red.shade300),
                       ),
                       onPressed: () => _deleteListing(listingId),
                       child: const Icon(
                         Icons.delete_outline,
-                        color: Colors.red,
+                        color: Colors.white,
                         size: 20,
                       ),
                     ),

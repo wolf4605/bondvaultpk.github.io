@@ -678,7 +678,20 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                                             children: [
                                               SizedBox(
                                                 height: 34,
-                                                child: OutlinedButton.icon(
+                                                child: ElevatedButton.icon(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        AppColors.primary,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    elevation: 1,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                  ),
                                                   onPressed: () =>
                                                       _showChangePasswordDialog(
                                                         item,

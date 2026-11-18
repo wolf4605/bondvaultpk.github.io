@@ -954,4 +954,20 @@ class ApiService {
     } catch (_) {}
     return null;
   }
+
+  /// Delete authenticated user account via DELETE /user/account
+  static Future<http.Response> deleteUserAccount(String accessToken) async {
+    try {
+      final uri = Uri.parse('${AppConfig.baseUrl}/user/account');
+      final res = await http.delete(
+        uri,
+        headers: {'Authorization': 'Bearer $accessToken'},
+      );
+      handleApiResponse(res);
+      return res;
+    } catch (e) {
+      handleNetworkError();
+      rethrow;
+    }
+  }
 }

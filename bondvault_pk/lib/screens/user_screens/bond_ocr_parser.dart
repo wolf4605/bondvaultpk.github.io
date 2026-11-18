@@ -1,5 +1,7 @@
+import '../../config/app_config.dart';
+
 class BondOcrParser {
-  static const denominations = [100, 200, 750, 1500, 25000, 40000];
+  static const denominations = AppDenominations.supported;
 
   static int? detectDenomination(String text) {
     final normalized = text.toUpperCase().replaceAll(',', '');

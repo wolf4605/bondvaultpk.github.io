@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../config/app_config.dart';
 import '../../config/app_theme.dart';
 import '../../config/responsive.dart';
 import '../../utils/api_service.dart';
@@ -94,12 +95,10 @@ class _DrawListsScreenState extends State<DrawListsScreen> {
                           runSpacing: 8,
                           children: [
                             _buildFilterChip('All', null),
-                            _buildFilterChip('Rs. 100', 100),
-                            _buildFilterChip('Rs. 200', 200),
-                            _buildFilterChip('Rs. 750', 750),
-                            _buildFilterChip('Rs. 1,500', 1500),
-                            _buildFilterChip('Rs. 25,000', 25000),
-                            _buildFilterChip('Rs. 40,000', 40000),
+                            ...AppDenominations.supported.map(
+                              (d) =>
+                                  _buildFilterChip('Rs. ${formatNumber(d)}', d),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),

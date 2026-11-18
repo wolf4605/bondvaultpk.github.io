@@ -215,4 +215,22 @@ class PushNotificationService {
       payload: ticketId,
     );
   }
+
+  /// Trigger system notification when a user has winning bonds in a newly uploaded gazette draw.
+  static Future<void> showWinningDrawNotification({
+    required int denomination,
+    required int winningCount,
+    required String drawDate,
+  }) async {
+    final int notifyId =
+        (denomination + winningCount + drawDate.hashCode).abs() % 100000;
+
+    await showNotification(
+      id: notifyId,
+      title: '🎉 Prize Bond Winning Alert!',
+      body:
+          'Found $winningCount winning bond(s) from your saved bonds in the latest Rs. $denomination draw!',
+      payload: 'draw_result_$denomination',
+    );
+  }
 }

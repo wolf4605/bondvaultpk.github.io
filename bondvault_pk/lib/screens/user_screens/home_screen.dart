@@ -60,7 +60,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       UserNotificationMonitor.scheduleClosedAppCheck(widget.accessToken);
     }
   }
@@ -239,36 +240,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {
-                  showAppToast(
-                    context,
-                    'No unread notifications',
-                    type: AppNotificationType.info,
-                  );
-                },
-              ),
-              Positioned(
-                top: 14,
-                right: 14,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.success,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 4),
-        ],
+        actions: const [],
       ),
       drawer: Drawer(
         backgroundColor: Theme.of(context).cardColor,

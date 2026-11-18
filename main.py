@@ -93,6 +93,8 @@ app.include_router(system_router)
 app.include_router(user_reports_router)
 app.include_router(admin_reports_router)
 
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -217,6 +217,34 @@ class UserNotificationMonitor {
           }
         }
       }
+
+      // 3. Check for New Winning Bond Alerts in User Portfolio
+      try {
+        final winningsData = await ApiService.fetchBondWinnings(accessToken);
+        if (winningsData != null) {
+          final results = winningsData['results'] as List? ?? [];
+          final int currentTotalWins = results.length;
+          final int? lastKnownWins = prefs.getInt('user_total_winning_bonds');
+
+          if (lastKnownWins == null) {
+            // Initial run: seed current total count without firing duplicate notifications for existing draws
+            await prefs.setInt('user_total_winning_bonds', currentTotalWins);
+          } else if (currentTotalWins > lastKnownWins) {
+            // New winning bonds found since last check
+            final int newWins = currentTotalWins - lastKnownWins;
+            final lastWin = results.isNotEmpty ? results.last : {};
+            final denom = lastWin['denomination'] as int? ?? 750;
+            final dateStr = lastWin['draw_date']?.toString() ?? '';
+
+            await PushNotificationService.showWinningDrawNotification(
+              denomination: denom,
+              winningCount: newWins,
+              drawDate: dateStr,
+            );
+            await prefs.setInt('user_total_winning_bonds', currentTotalWins);
+          }
+        }
+      } catch (_) {}
     } catch (_) {
     } finally {
       _isChecking = false;

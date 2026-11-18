@@ -313,32 +313,7 @@ class _AdminDrawsScreenState extends State<AdminDrawsScreen>
                             decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.money),
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 100,
-                                child: Text('Rs. 100 Prize Bond'),
-                              ),
-                              DropdownMenuItem(
-                                value: 200,
-                                child: Text('Rs. 200 Prize Bond'),
-                              ),
-                              DropdownMenuItem(
-                                value: 750,
-                                child: Text('Rs. 750 Prize Bond'),
-                              ),
-                              DropdownMenuItem(
-                                value: 1500,
-                                child: Text('Rs. 1,500 Prize Bond'),
-                              ),
-                              DropdownMenuItem(
-                                value: 25000,
-                                child: Text('Rs. 25,000 Premium Bond'),
-                              ),
-                              DropdownMenuItem(
-                                value: 40000,
-                                child: Text('Rs. 40,000 Premium Bond'),
-                              ),
-                            ],
+                            items: AppDenominations.dropdownItems(),
                             onChanged: (v) {
                               if (v != null) {
                                 setDialogState(() {
@@ -684,43 +659,11 @@ class _AdminDrawsScreenState extends State<AdminDrawsScreen>
                           const SizedBox(height: 6),
                           DropdownButtonFormField<int>(
                             initialValue: selectedDenom,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.money),
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 100,
-                                child: Text('Rs. 100'),
-                              ),
-                              DropdownMenuItem(
-                                value: 200,
-                                child: Text('Rs. 200'),
-                              ),
-                              DropdownMenuItem(
-                                value: 750,
-                                child: Text('Rs. 750'),
-                              ),
-                              DropdownMenuItem(
-                                value: 1500,
-                                child: Text('Rs. 1,500'),
-                              ),
-                              DropdownMenuItem(
-                                value: 7500,
-                                child: Text('Rs. 7,500'),
-                              ),
-                              DropdownMenuItem(
-                                value: 15000,
-                                child: Text('Rs. 15,000'),
-                              ),
-                              DropdownMenuItem(
-                                value: 25000,
-                                child: Text('Rs. 25,000'),
-                              ),
-                              DropdownMenuItem(
-                                value: 40000,
-                                child: Text('Rs. 40,000'),
-                              ),
-                            ],
+                            items: AppDenominations.dropdownItems(),
                             onChanged: (v) {
                               if (v != null) {
                                 setDialogState(() => selectedDenom = v);
@@ -1137,7 +1080,17 @@ class _AdminDrawsScreenState extends State<AdminDrawsScreen>
                                           mainAxisAlignment:
                                               MainAxisAlignment.end,
                                           children: [
-                                            OutlinedButton.icon(
+                                            ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    AppColors.primary,
+                                                foregroundColor: Colors.white,
+                                                elevation: 1,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
                                               onPressed: () {
                                                 Navigator.push(
                                                   context,

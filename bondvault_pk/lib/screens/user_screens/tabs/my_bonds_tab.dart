@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../config/app_config.dart';
 import '../../../config/app_theme.dart';
 import '../../../config/responsive.dart';
 import '../../../utils/api_service.dart';
@@ -979,17 +980,11 @@ class _AddBondsDialogState extends State<_AddBondsDialog> {
                   const SizedBox(height: 6),
                   DropdownButtonFormField<int>(
                     initialValue: _selectedDenomination,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.currency_exchange),
                     ),
-                    items: BondOcrParser.denominations
-                        .map(
-                          (d) => DropdownMenuItem(
-                            value: d,
-                            child: Text('Rs. ${formatNumber(d)}'),
-                          ),
-                        )
-                        .toList(),
+                    items: AppDenominations.dropdownItems(),
                     onChanged: (val) {
                       if (val != null) {
                         setState(() => _selectedDenomination = val);

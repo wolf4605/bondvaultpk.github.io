@@ -45,6 +45,8 @@ from ..responses.base import (
     DrawListWinnersResponse,
 )
 from ..database import DB
+from ..services.email_service import send_user_action_email
+from ..services.fcm_service import send_fcm_push_notification
 from ..services.drawlist_automation import PAKISTAN_STANDARD_TIME
 from ..services.drawlist_import import (
     import_text_draw_result,
@@ -112,6 +114,7 @@ def _drawlist_winners_response(
     path="",
     response_model=list[DrawListSummary],
     summary="Fetch all available draw lists for admin",
+    operation_id="get_admin_drawlists_all",
 )
 async def get_admin_drawlists(
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
@@ -137,6 +140,7 @@ async def get_admin_drawlists(
     path="",
     response_model=list[DrawListSummary],
     summary="Fetch all available draw lists",
+    operation_id="get_user_drawlists_all",
 )
 async def get_user_drawlists(
     user: Annotated[models.UserInfo, Depends(get_current_user)],
@@ -312,6 +316,7 @@ async def download_user_drawlist_pdf(
     path="/schedule",
     response_model=list[responses.UpcomingDrawInfo],
     summary="Fetch all draw schedules for admin",
+    operation_id="get_admin_upcoming_draws_schedule",
 )
 async def get_upcoming_draws(
     admin: Annotated[models.AdminInfo, Depends(get_current_admin)],
@@ -334,6 +339,7 @@ async def get_upcoming_draws(
     path="/schedule",
     response_model=list[responses.UpcomingDrawInfo],
     summary="Fetch upcoming draw schedules for users",
+    operation_id="get_user_upcoming_draws_schedule",
 )
 async def get_user_upcoming_draws(
     user: Annotated[models.UserInfo, Depends(get_current_user)],
@@ -604,6 +610,61 @@ async def add_new_drawlist(
             ),
         )
     removed_tasks = await remove_completed_drawlist_tasks(DB)
+
+    # Notify users with matching winning bonds in their portfolio
+    async def _notify_winning_users():
+        try:
+            winning_users = await DB.fetch(
+                """
+                SELECT
+                    b."user_id",
+                    u."email",
+                    u."username",
+                    u."fcm_token",
+                    COUNT(DISTINCT w."bond_number")::INT AS "winning_bonds_count"
+                FROM "bondlists" AS b
+                JOIN "users" AS u ON u."id" = b."user_id"
+                JOIN "drawlists" AS d ON d."denomination" = b."denomination"
+                JOIN "draw_winners" AS w ON w."draw_id" = d."draw_id" AND w."bond_number" = ANY(b."bonds")
+                WHERE d."denomination" = $1 AND d."draw_date" = $2
+                GROUP BY b."user_id", u."email", u."username", u."fcm_token"
+                """,
+                int(payload.denomination),
+                payload.draw_date,
+            )
+
+            for rec in winning_users:
+                count = rec["winning_bonds_count"]
+                fcm_token = rec["fcm_token"]
+                email = rec["email"]
+                username = rec["username"]
+
+                # 1. FCM System Push Notification
+                if fcm_token:
+                    await send_fcm_push_notification(
+                        fcm_token,
+                        "🎉 Prize Bond Winning Alert!",
+                        f"Found {count} winning bond(s) from your saved bonds in the latest Rs. {payload.denomination} draw!",
+                        {
+                            "type": "winning_alert",
+                            "denomination": str(payload.denomination),
+                            "draw_date": str(payload.draw_date),
+                            "winning_count": str(count),
+                        },
+                    )
+
+                # 2. Winning Notification Email
+                if email:
+                    await send_user_action_email(
+                        email,
+                        username,
+                        "prize bond draw winner alert",
+                        f"Found {count} winning bond(s) from your saved portfolio in the official Rs. {payload.denomination} gazette draw dated {payload.draw_date}!",
+                    )
+        except Exception:
+            logger.exception("Winning bonds user notification failed")
+
+    asyncio.create_task(_notify_winning_users())
 
     return responses.BaseResponse(
         status_code=status.HTTP_201_CREATED,

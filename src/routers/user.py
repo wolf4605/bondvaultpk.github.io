@@ -449,3 +449,61 @@ async def remove_fcm_token(
         user.id,
     )
     return responses.BaseResponse(message="FCM device token removed.")
+
+
+@router.delete(
+    "/account",
+    response_model=responses.BaseResponse,
+    summary="Permanently delete authenticated user account and all associated data",
+)
+async def delete_user_account(
+    user: Annotated[models.UserInfo, Depends(get_current_user)],
+    request: Request,
+) -> responses.BaseResponse:
+    """Permanently delete user account, stored bondlists, marketplace posts, reports, and active session."""
+    user_id = user.id
+    user_email = user.email
+    user_name = user.username
+
+    async with DB.transaction() as conn:
+        # 1. Delete user's stored bondlists
+        await conn.execute('DELETE FROM "bondlists" WHERE "user_id" = $1', user_id)
+        # 2. Delete user's marketplace listings
+        await conn.execute('DELETE FROM "market" WHERE "posted_by" = $1', user_id)
+        # 3. Delete user's support reports & messages
+        await conn.execute('DELETE FROM "reports" WHERE "reported_by" = $1', user_id)
+        # 4. Delete user account from database
+        deleted_id = await conn.fetchval(
+            'DELETE FROM "users" WHERE "id" = $1 RETURNING "id"',
+            user_id,
+        )
+
+    if deleted_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found or already deleted.",
+        )
+
+    # 5. Revoke active Redis session
+    try:
+        await request.app.state.redis_wrapper.revoke_session(user_id, "user")
+    except Exception:
+        pass
+
+    # 6. Send account deletion confirmation email
+    async def _send_deletion_email():
+        try:
+            await send_user_action_email(
+                user_email,
+                user_name,
+                "permanently deleted",
+                "Your BondVault PK account and all associated bond portfolio data have been permanently deleted per your request.",
+            )
+        except Exception:
+            logger.exception("User account deletion confirmation email failed")
+
+    asyncio.create_task(_send_deletion_email())
+
+    return responses.BaseResponse(
+        message="Your BondVault PK user account and associated data have been permanently deleted."
+    )

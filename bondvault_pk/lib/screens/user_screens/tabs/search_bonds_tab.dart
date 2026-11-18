@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../config/app_config.dart';
 import '../../../config/app_theme.dart';
 import '../../../config/responsive.dart';
 import '../../../utils/api_service.dart';
@@ -167,17 +168,11 @@ class _SearchBondsTabState extends State<SearchBondsTab> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int>(
                       initialValue: _selectedDenomination,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.money),
                       ),
-                      items: BondOcrParser.denominations
-                          .map(
-                            (d) => DropdownMenuItem(
-                              value: d,
-                              child: Text('Rs. $d'),
-                            ),
-                          )
-                          .toList(),
+                      items: AppDenominations.dropdownItems(),
                       onChanged: (val) {
                         if (val != null) {
                           setState(() => _selectedDenomination = val);

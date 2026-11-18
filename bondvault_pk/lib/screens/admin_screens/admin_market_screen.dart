@@ -635,14 +635,13 @@ class _AdminMarketScreenState extends State<AdminMarketScreen> {
                                                             strokeWidth: 2,
                                                           ),
                                                     )
-                                                  : OutlinedButton.icon(
-                                                      style: OutlinedButton.styleFrom(
-                                                        foregroundColor:
+                                                  : ElevatedButton.icon(
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
                                                             Colors.red,
-                                                        side: const BorderSide(
-                                                          color: Colors.red,
-                                                          width: 1.2,
-                                                        ),
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                        elevation: 1,
                                                         padding:
                                                             const EdgeInsets.symmetric(
                                                               horizontal: 10,

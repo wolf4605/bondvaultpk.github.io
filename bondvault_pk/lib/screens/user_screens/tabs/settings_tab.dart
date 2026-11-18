@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/app_theme.dart';
+import '../../../utils/api_service.dart';
+import '../../../utils/push_notification_service.dart';
+import '../../../utils/user_notification_monitor.dart';
 import '../../../widgets/widgets.dart';
 import '../../change_password_screen.dart';
 import '../../edit_profile_screen.dart';
@@ -334,19 +337,54 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   void _showDeleteAccountDialog() {
+    bool isDeleting = false;
     showAppNotificationSheet(
       context: context,
-      title: 'Delete Account',
-      message: 'Are you sure you want to permanently close your account? All saved bond series and data will be removed.',
+      title: 'Permanently Delete Account',
+      message: 'Are you sure you want to permanently delete your BondVault PK account? All saved prize bond series, portfolio data, marketplace listings, and support tickets will be permanently removed.',
       type: AppNotificationType.error,
       dismissLabel: 'Cancel',
-      customAction: AppButton(
-        label: 'Permanently Delete',
-        variant: AppButtonVariant.danger,
-        onPressed: () {
-          Navigator.pop(context);
-          widget.onLogout();
-        },
+      customAction: StatefulBuilder(
+        builder: (context, setSheetState) => AppButton(
+          label: 'Confirm Permanent Deletion',
+          variant: AppButtonVariant.danger,
+          isLoading: isDeleting,
+          icon: const Icon(Icons.delete_forever, size: 18),
+          onPressed: () async {
+            setSheetState(() => isDeleting = true);
+            try {
+              final res = await ApiService.deleteUserAccount(
+                widget.accessToken,
+              );
+              if (res.statusCode == 200 || res.statusCode == 204) {
+                if (context.mounted) Navigator.pop(context);
+                PushNotificationService.unregisterDeviceToken(
+                  widget.accessToken,
+                );
+                UserNotificationMonitor.stop();
+                widget.onLogout();
+              } else {
+                if (context.mounted) {
+                  setSheetState(() => isDeleting = false);
+                  showAppToast(
+                    context,
+                    'Failed to delete account.',
+                    type: AppNotificationType.error,
+                  );
+                }
+              }
+            } catch (e) {
+              if (context.mounted) {
+                setSheetState(() => isDeleting = false);
+                showAppToast(
+                  context,
+                  'Error deleting account: $e',
+                  type: AppNotificationType.error,
+                );
+              }
+            }
+          },
+        ),
       ),
     );
   }

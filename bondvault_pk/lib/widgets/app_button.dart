@@ -96,9 +96,10 @@ class AppButton extends StatelessWidget {
         );
         break;
       case AppButtonVariant.outlined:
-        buttonStyle = OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+        buttonStyle = ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF003527),
+          foregroundColor: Colors.white,
+          elevation: 2,
           shape: RoundedRectangleBorder(borderRadius: radius),
           padding: responsivePadding,
         );
@@ -123,13 +124,7 @@ class AppButton extends StatelessWidget {
     }
 
     Widget buttonWidget;
-    if (variant == AppButtonVariant.outlined) {
-      buttonWidget = OutlinedButton(
-        onPressed: isDisabled ? null : onPressed,
-        style: buttonStyle,
-        child: child,
-      );
-    } else if (variant == AppButtonVariant.text) {
+    if (variant == AppButtonVariant.text) {
       buttonWidget = TextButton(
         onPressed: isDisabled ? null : onPressed,
         style: buttonStyle,
