@@ -1,12 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-* Description: Interactive support reporting and ticketing system endpoints for users and administrators.
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-* Date: 2026-11-16 14:15:00
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Interactive support reporting and ticketing system endpoints for users and administrators."""
 
 import asyncio
 import logging

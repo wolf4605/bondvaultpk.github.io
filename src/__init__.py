@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Contains all the Source code for the application.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 17:39:33
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 19:29:04
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""BondVault PK core application package."""
 
 Tags = [
     {

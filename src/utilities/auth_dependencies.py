@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-23 11:19:18
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-23 20:23:02
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-""""""FastAPI dependencies for authenticated users and administrators."""
+"""FastAPI authentication dependencies and rate limiters."""
 
 from typing import Annotated, Literal
 from uuid import UUID
@@ -37,12 +22,12 @@ from .auth_tokens import (
     token_lifetime,
 )
 
-USER_READ_REQUESTS_PER_MINUTE = 120
-USER_WRITE_REQUESTS_PER_MINUTE = 30
-ADMIN_READ_REQUESTS_PER_MINUTE = 60
-ADMIN_WRITE_REQUESTS_PER_MINUTE = 20
-LOGIN_REQUESTS_PER_IDENTIFIER = 10
-LOGIN_WINDOW_SECONDS = 15 * 60
+USER_READ_REQUESTS_PER_MINUTE = 600
+USER_WRITE_REQUESTS_PER_MINUTE = 120
+ADMIN_READ_REQUESTS_PER_MINUTE = 1200
+ADMIN_WRITE_REQUESTS_PER_MINUTE = 300
+LOGIN_REQUESTS_PER_IDENTIFIER = 30
+LOGIN_WINDOW_SECONDS = 5 * 60
 
 user_oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/auth/login",
@@ -151,7 +136,10 @@ async def enforce_account_rate_limit(
     subject: str,
     role: Literal["user", "admin"],
 ) -> None:
-    """Apply per-account limits to authenticated reads and writes."""
+    """Apply per-account + per-IP limits to authenticated reads and writes."""
+    client_ip = request.client.host if request.client else "unknown"
+    user_ip_identifier = f"{subject}:{client_ip}"
+
     is_write = request.method in {"POST", "PUT", "PATCH", "DELETE"}
     if role == "admin":
         limit = (
@@ -169,7 +157,7 @@ async def enforce_account_rate_limit(
     await _check_account_rate_limit(
         request,
         f"account:{role}:{'write' if is_write else 'read'}",
-        subject,
+        user_ip_identifier,
         limit,
         60,
     )
@@ -180,11 +168,13 @@ async def record_failed_login_attempt(
     role: Literal["user", "admin"],
     identifier: str,
 ) -> None:
-    """Limit failed login attempts without locking out valid sign-ins."""
+    """Limit failed login attempts per user account + client IP."""
+    client_ip = request.client.host if request.client else "unknown"
+    user_ip_identifier = f"{identifier.strip().casefold()}:{client_ip}"
     await _check_account_rate_limit(
         request,
         f"login:{role}",
-        identifier.strip().casefold(),
+        user_ip_identifier,
         LOGIN_REQUESTS_PER_IDENTIFIER,
         LOGIN_WINDOW_SECONDS,
     )

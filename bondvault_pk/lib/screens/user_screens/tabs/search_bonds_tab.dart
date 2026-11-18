@@ -6,7 +6,6 @@ import '../../../config/responsive.dart';
 import '../../../utils/api_service.dart';
 import '../../../utils/app_utils.dart';
 import '../../../widgets/widgets.dart';
-import '../bond_ocr_parser.dart';
 
 class SearchBondsTab extends StatefulWidget {
   final bool isVerified;

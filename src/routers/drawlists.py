@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-11-02 10:40:01
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-11-02 10:40:04
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Official gazette drawlists and draw schedule endpoints."""
 from datetime import date, datetime
 from io import BytesIO
 from typing import Annotated

@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Background monitoring and recovery for the PostgreSQL connection.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-24 10:20:00
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-24 10:20:02
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Database connection health monitoring service."""
 
 import asyncio
 

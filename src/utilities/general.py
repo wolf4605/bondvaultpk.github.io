@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: General function utilities used throughout the application.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 18:36:18
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 19:28:42
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""General utility functions and helpers."""
 
 import io
 import sys

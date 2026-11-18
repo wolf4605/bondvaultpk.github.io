@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-23 11:19:18
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-23 13:41:14
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-""""""User login and authenticated profile endpoints."""
+"""User authentication, login, and registration endpoints."""
 
 import logging
 import secrets

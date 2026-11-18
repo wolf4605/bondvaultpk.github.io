@@ -65,11 +65,11 @@ void callbackDispatcher() {
         await UserNotificationMonitor.checkUserTicketUpdatesDirect(cachedToken);
       }
 
-      // Re-queue next 15-second background check so it loops continuously even when app is turned off
+      // Re-queue next 60-second background check so it loops continuously even when app is turned off
       Workmanager().registerOneOffTask(
         "closed_app_loop_${DateTime.now().millisecondsSinceEpoch}",
         userReportWorkTask,
-        initialDelay: const Duration(seconds: 15),
+        initialDelay: const Duration(seconds: 60),
         existingWorkPolicy: ExistingWorkPolicy.replace,
         constraints: Constraints(networkType: NetworkType.connected),
       );
@@ -120,14 +120,14 @@ class UserNotificationMonitor {
     } catch (_) {}
   }
 
-  /// Schedule an immediate WorkManager background check when user pauses or closes the app
+  /// Schedule a WorkManager background check when user pauses or closes the app
   static void scheduleClosedAppCheck(String accessToken) {
     if (accessToken.isEmpty) return;
     try {
       Workmanager().registerOneOffTask(
         "closed_app_check_${DateTime.now().millisecondsSinceEpoch}",
         userReportWorkTask,
-        initialDelay: const Duration(seconds: 15),
+        initialDelay: const Duration(seconds: 60),
         existingWorkPolicy: ExistingWorkPolicy.replace,
         constraints: Constraints(networkType: NetworkType.connected),
       );

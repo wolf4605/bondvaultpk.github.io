@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../utils/api_service.dart';
 import '../utils/push_notification_service.dart';
 import '../widgets/widgets.dart';
 import 'admin_screens/admin_home_screen.dart';
@@ -136,6 +137,9 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           );
         }
+      } else if (response.statusCode == 429) {
+        if (!mounted) return;
+        ApiService.handleApiResponse(response, context: context);
       } else {
         final data = jsonDecode(response.body);
         final errMsg = data['detail'] ?? 'Invalid username or password.';

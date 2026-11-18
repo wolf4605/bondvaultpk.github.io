@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Contains Models for the User Object of the Project.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-22 17:44:12
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-22 17:44:15
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""User profile and identity data models."""
 from datetime import datetime
 from email.policy import default
 from uuid import UUID

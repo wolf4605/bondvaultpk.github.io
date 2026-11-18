@@ -1,21 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Custom logging handlers and filters used by the application.
-
-These classes keep the terminal output clean while preserving detailed exception data in rotating log files. They are intentionally separated from the logger factory so the runtime configuration can stay easy to maintain.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 18:28:57
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:08:09
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""File and stream logging handlers."""
 
 import logging
 from datetime import datetime

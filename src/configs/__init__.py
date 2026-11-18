@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Contains all the Configurations Required in the application.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 17:39:33
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:10:32
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Application configuration package."""
 
 from .app_settings import AppSettings
 from .auth_configs import ACCESS_TOKEN_IDLE_TIMEOUT_MINUTES, JWT_ALGORITHM

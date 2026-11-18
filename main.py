@@ -1,20 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* File: main.py
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 17:39:33
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 19:24:42
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""BondVault PK main application entrypoint and server configuration."""
 
 import logging
 import traceback
@@ -61,7 +45,7 @@ logging.getLogger("redis.asyncio.connection").setLevel(logging.INFO)
 exception_file_logger = logging.getLogger("application.errors")
 API_PREFIXES = ("/admins", "/bonds", "/drawlists", "/system", "/user")
 RATE_LIMITED_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-IP_REQUESTS_PER_MINUTE = 300
+IP_REQUESTS_PER_MINUTE = 1200
 
 # ╔══════════════════════════════════════════════════════════╗
 # ║               MAIN APPLICATION ENTRYPOINT                ║

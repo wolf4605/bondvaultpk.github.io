@@ -1,21 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Logging configuration used to bootstrap the application runtime.
-
-This module defines the global logging structure: the console handler, the rotating file handler, custom filters, and the dictionary configuration passed to ``logging.config``. Separating the configuration keeps the application startup code straightforward while remaining easy to tune when log retention or routing requirements change.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 18:28:57
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:06:08
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Logging configuration setup and handler initialization."""
 
 import glob
 import os

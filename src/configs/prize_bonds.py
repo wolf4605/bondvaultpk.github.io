@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Contains some configs regarding Pakistani Prize Bonds.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-22 19:32:18
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-22 19:32:19
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Prize bond denomination definitions and rules."""
 
 from enum import IntEnum
 

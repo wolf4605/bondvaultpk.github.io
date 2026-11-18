@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Models for the bondlists and bonds.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-24 10:32:57
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-24 10:32:59
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Prize bond and drawlist data models."""
 
 
 from uuid import UUID

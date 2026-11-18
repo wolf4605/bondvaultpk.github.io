@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-11-05 21:19:45
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-11-07 21:23:19
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-""""""Import text draw results and queue draw-list follow-up tasks."""
+"""Automated State Bank gazette draw scraper and task scheduler."""
 
 import asyncio
 from datetime import date, datetime, timedelta, timezone

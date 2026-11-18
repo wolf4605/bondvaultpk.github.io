@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Module Containing all the authentication related functions.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 19:00:25
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 19:30:34
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Password hashing and verification utilities."""
 
 import argon2
 from argon2 import PasswordHasher

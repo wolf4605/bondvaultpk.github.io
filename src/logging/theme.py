@@ -1,21 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Theme configuration for the application's rich console output.
-
-This module intentionally contains only presentation settings. The formatter logic lives in `src.logging.formatters` so the styling and formatting concerns remain separate.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 18:28:57
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:09:07
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Rich console formatting theme styles."""
 from rich.console import Console
 from rich.theme import Theme
 

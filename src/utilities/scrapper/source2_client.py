@@ -1,8 +1,4 @@
 
-# @Author: BondVault PK
-# @Date:   2026-11-07 19:40:34
-# @Last Modified by:   Wolf4605
-# @Last Modified time: 2026-11-07 20:22:28
 """Scrape prize-bond draw results and future draw dates from PrizeBondPK."""
 
 import asyncio

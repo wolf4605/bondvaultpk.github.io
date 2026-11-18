@@ -1,21 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Public logger factory and app-level logging helpers.
-
-This module keeps the runtime logger creation logic separate from the formatter and handler definitions so the package remains easier to maintain as the application grows.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 18:28:57
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:07:06
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Logger factory and instance resolution helpers."""
 
 import inspect
 import logging

@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-30 07:30:48
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-30 07:31:11
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""SMTP email delivery settings and configuration."""
 
 import os
 from pathlib import Path

@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-23 19:09:05
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-23 19:09:26
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Prize bond search, portfolio, and draw winning endpoints."""
 
 from collections.abc import Mapping
 from typing import Annotated, Any

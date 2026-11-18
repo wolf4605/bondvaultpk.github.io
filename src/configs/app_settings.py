@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: This Module Imports Settings from pyproject.toml.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 17:39:33
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:10:13
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Application metadata and OpenAPI documentation settings."""
 
 from pathlib import Path
 

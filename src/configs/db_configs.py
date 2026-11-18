@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 17:39:33
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:35:18
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Database connection configuration and environment settings."""
 import os
 from pathlib import Path
 

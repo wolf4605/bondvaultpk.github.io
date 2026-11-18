@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../utils/api_service.dart';
 import '../widgets/widgets.dart';
 import 'user_screens/home_screen.dart';
 
@@ -457,6 +458,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (!mounted) return;
           Navigator.pop(context);
         }
+      } else if (response.statusCode == 429) {
+        if (!mounted) return;
+        ApiService.handleApiResponse(response, context: context);
       } else {
         String errMsg = 'Registration failed.';
         try {

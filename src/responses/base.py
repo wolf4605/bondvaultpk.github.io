@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-23 19:26:49
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-23 19:26:51
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""API response models and schemas."""
 
 from datetime import date, datetime
 from typing import Literal

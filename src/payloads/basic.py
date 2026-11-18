@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Contains the base Payloads on which to build other payloads.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-23 13:25:53
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-23 13:25:54
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""API request payload models."""
 
 from datetime import UTC, date, datetime
 from typing import Literal

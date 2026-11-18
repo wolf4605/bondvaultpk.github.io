@@ -1,21 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: Formatter implementations for console and file log output.
-
-The formatters keep terminal output readable and structured JSON logs suitable for file storage and diagnostics. Keeping them separate makes it easier to update presentation or machine-readable output without disturbing the runtime logger configuration.
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-20 18:28:57
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-21 20:07:29
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""Console and file log message formatters."""
 
 import json
 import logging

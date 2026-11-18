@@ -61,6 +61,27 @@ class ApiService {
     }
   }
 
+  static bool _rateLimitDialogShowing = false;
+
+  /// Global error handler for HTTP 429 Too Many Requests (Rate Limit Exceeded).
+  static void handleRateLimitExceeded([String? detail]) {
+    if (_rateLimitDialogShowing) return;
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    _rateLimitDialogShowing = true;
+
+    showAppNotificationSheet(
+      context: context,
+      title: 'Rate Limit Exceeded',
+      message: detail ?? 'You have sent too many requests in a short time. Please wait a moment before trying again.',
+      type: AppNotificationType.warning,
+      dismissLabel: 'Got It',
+      onDismiss: () {
+        _rateLimitDialogShowing = false;
+      },
+    );
+  }
+
   /// Centralized API response status code handler.
   static bool handleApiResponse(
     http.Response res, {
@@ -75,6 +96,18 @@ class ApiService {
 
     if (res.statusCode == 401) {
       handleInvalidSession();
+      return false;
+    }
+
+    if (res.statusCode == 429) {
+      String? detailMsg;
+      try {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['detail'] is String) {
+          detailMsg = data['detail'];
+        }
+      } catch (_) {}
+      handleRateLimitExceeded(detailMsg);
       return false;
     }
 
@@ -109,10 +142,7 @@ class ApiService {
       }
     }
 
-    if (res.statusCode == 429) {
-      errorMessage = 'Too many requests. Please wait a moment and try again.';
-    } else if (res.statusCode == 403 &&
-        errorMessage == 'Request failed (403)') {
+    if (res.statusCode == 403 && errorMessage == 'Request failed (403)') {
       errorMessage =
           'Access denied. You do not have permission to perform this action.';
     } else if (res.statusCode == 404 &&
@@ -132,9 +162,10 @@ class ApiService {
   static void handleNetworkError([BuildContext? context]) {
     final activeContext = context ?? navigatorKey.currentContext;
     if (activeContext == null) return;
-    showAppToast(
-      activeContext,
-      'Unable to connect to server. Please check your internet connection or server status.',
+    showAppNotificationSheet(
+      context: activeContext,
+      title: 'Connection Error',
+      message: 'Could not connect to BondVault PK server. Please check your internet connection or server status.',
       type: AppNotificationType.error,
     );
   }

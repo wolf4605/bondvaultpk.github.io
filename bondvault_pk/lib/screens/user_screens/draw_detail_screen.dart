@@ -8,7 +8,6 @@ import '../../config/app_theme.dart';
 import '../../config/responsive.dart';
 import '../../utils/api_service.dart';
 import '../../utils/app_utils.dart';
-import '../../utils/notification_utils.dart';
 import '../../widgets/widgets.dart';
 
 class DrawDetailScreen extends StatefulWidget {
@@ -89,10 +88,6 @@ class _DrawDetailScreenState extends State<DrawDetailScreen> {
       context,
       '📥 Downloading Rs. ${formatNumber(widget.denomination)} Gazette PDF...',
       type: AppNotificationType.info,
-    );
-    LocalNotificationUtils.showDownloadStartedNotification(
-      denomination: widget.denomination,
-      drawDate: widget.drawDate,
     );
 
     try {

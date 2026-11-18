@@ -74,8 +74,7 @@ class SystemHealthMonitor {
     } catch (_) {
       _showErrorSheet(
         title: 'Service Error',
-        message:
-            'Cannot connect to BondVault PK server at ${AppConfig.baseUrl}. Please check your internet connection or server status.',
+        message: 'Cannot connect to BondVault PK server. Please check your internet connection or server status.',
       );
       return false;
     } finally {

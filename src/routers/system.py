@@ -1,19 +1,4 @@
-"""
-* Project Name: BONDVAULT PK
-
-* Description: 
-
-* Author: Wolf4605
-* Email: mab4605@gmail.com
-
-* Date: 2026-10-30 09:45:18
-
-* Last Modified by: Wolf4605
-* Last Modified time: 2026-10-30 09:47:00
-
-* License: MIT
-* Copyright© BondVault PK. All rights reserved.
-"""
+"""System health monitoring and email verification endpoints."""
 
 import asyncio
 import secrets
